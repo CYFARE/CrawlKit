@@ -1,0 +1,19 @@
+# CrawlKit v3.0 Configuration
+# Values here override defaults. CLI flags override this file.
+
+[crawl]
+concurrency = 20
+timeout = 20
+scope = "dw"                    # "dw" (deepweb/.onion) or "cw" (clearweb)
+mode = "full_crawl"             # "full_crawl" or "unique_domains"
+max_depth = 0                   # 0 = unlimited
+user_agent = "Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0"
+include_pattern = ""            # regex, empty = match all
+exclude_pattern = ""            # regex, empty = exclude none
+
+[output]
+formats = ["json"]
+directory = "."
+
+[session]
+auto_save = true

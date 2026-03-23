@@ -1,0 +1,13 @@
+[crawl]
+scope = "cw"
+mode = "unique_domains"
+user_agent = "Mozilla/5.0 (Windows NT 10.0; rv:102.0) Gecko/20100101 Firefox/102.0"
+concurrency = 20
+timeout = 60
+max_depth = 10
+
+[output]
+formats = ["csv"]
+
+[session]
+auto_save = true

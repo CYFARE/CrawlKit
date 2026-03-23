@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrawlKit v3.0 - Live Dashboard</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d1117;
+    --card: #161b22;
+    --border: #30363d;
+    --cyan: #58a6ff;
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --text: #c9d1d9;
+    --muted: #8b949e;
+    --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 0 0 16px 0;
+  }
+
+  /* ---- HEADER ---- */
+  #header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  #header h1 {
+    font-family: var(--mono);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--cyan);
+    letter-spacing: 0.5px;
+  }
+
+  #conn-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  #conn-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--red);
+    transition: background 0.3s ease;
+    box-shadow: 0 0 6px var(--red);
+  }
+
+  #conn-dot.connected {
+    background: var(--green);
+    box-shadow: 0 0 6px var(--green);
+  }
+
+  /* ---- MAIN ---- */
+  #main {
+    flex: 1;
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* ---- CARDS ROW ---- */
+  #cards-row {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 12px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    transition: border-color 0.2s ease;
+  }
+
+  .card:hover { border-color: var(--cyan); }
+
+  .card-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .card-icon {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+  }
+
+  .card-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    transition: color 0.3s ease;
+  }
+
+  .card-value.flash {
+    animation: flash-update 0.4s ease;
+  }
+
+  @keyframes flash-update {
+    0% { opacity: 0.5; transform: scale(0.97); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+
+  .card.error-active .card-value { color: var(--red); }
+  .card.error-active { border-color: rgba(248, 81, 73, 0.4); }
+
+  /* ---- MIDDLE ROW ---- */
+  #middle-row {
+    display: grid;
+    grid-template-columns: 60fr 40fr;
+    gap: 12px;
+    min-height: 340px;
+  }
+
+  /* ---- BOTTOM ROW ---- */
+  #bottom-row {
+    display: grid;
+    grid-template-columns: 60fr 40fr;
+    gap: 12px;
+    min-height: 260px;
+  }
+
+  /* ---- PANEL ---- */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .panel-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+
+  .panel-body {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ---- DOMAIN TABLE ---- */
+  #domain-search {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 10px;
+    width: 200px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  #domain-search:focus { border-color: var(--cyan); }
+  #domain-search::placeholder { color: var(--muted); }
+
+  #domain-table-wrap {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead {
+    position: sticky;
+    top: 0;
+    background: var(--card);
+    z-index: 5;
+  }
+
+  th {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+  }
+
+  th:hover { color: var(--cyan); }
+
+  th .sort-arrow { margin-left: 4px; opacity: 0.5; }
+  th.sorted-asc .sort-arrow::after { content: ' ↑'; opacity: 1; }
+  th.sorted-desc .sort-arrow::after { content: ' ↓'; opacity: 1; }
+
+  td {
+    padding: 7px 12px;
+    border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  tr:hover td { background: rgba(88, 166, 255, 0.05); }
+
+  td.domain-name { color: var(--cyan); }
+  td.url-count { text-align: right; color: var(--green); }
+  td.last-seen { color: var(--muted); font-size: 11px; }
+
+  .empty-state {
+    text-align: center;
+    color: var(--muted);
+    padding: 40px;
+    font-size: 13px;
+  }
+
+  /* ---- PAGINATION ---- */
+  #domain-pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .page-btn {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .page-btn:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* ---- URL FEED ---- */
+  #feed-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  #pause-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 3px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  #pause-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+  #pause-btn.paused { border-color: var(--yellow); color: var(--yellow); background: rgba(210, 153, 34, 0.1); }
+
+  #url-feed {
+    height: 100%;
+    overflow-y: auto;
+    padding: 6px 0;
+    scroll-behavior: smooth;
+  }
+
+  .feed-entry {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 12px;
+    font-family: var(--mono);
+    font-size: 11px;
+    transition: background 0.15s;
+    animation: slide-in 0.2s ease;
+  }
+
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .feed-entry:hover { background: rgba(88, 166, 255, 0.05); }
+
+  .status-badge {
+    flex-shrink: 0;
+    min-width: 36px;
+    text-align: center;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+  }
+
+  .status-2xx { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid rgba(63, 185, 80, 0.3); }
+  .status-3xx { background: rgba(210, 153, 34, 0.15); color: var(--yellow); border: 1px solid rgba(210, 153, 34, 0.3); }
+  .status-4xx, .status-5xx { background: rgba(248, 81, 73, 0.15); color: var(--red); border: 1px solid rgba(248, 81, 73, 0.3); }
+  .status-0 { background: rgba(139, 148, 158, 0.15); color: var(--muted); border: 1px solid rgba(139, 148, 158, 0.3); }
+
+  .feed-url {
+    flex: 1;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .feed-time {
+    flex-shrink: 0;
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  /* ---- CANVAS PANELS ---- */
+  #speed-canvas-wrap, #donut-canvas-wrap {
+    width: 100%;
+    height: 100%;
+    position: relative;
+  }
+
+  canvas {
+    display: block;
+  }
+
+  /* ---- DONUT LEGEND ---- */
+  #donut-legend {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 8px;
+    flex-shrink: 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ---- SCROLLBAR ---- */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ---- RESPONSIVE ---- */
+  @media (max-width: 1200px) {
+    #cards-row { grid-template-columns: repeat(4, 1fr); }
+  }
+
+  @media (max-width: 900px) {
+    #middle-row, #bottom-row { grid-template-columns: 1fr; }
+    #cards-row { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 600px) {
+    #cards-row { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <h1>CrawlKit v3.0</h1>
+  <div id="conn-status">
+    <div id="conn-dot"></div>
+    <span id="conn-label">Disconnected</span>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+
+  <!-- STATUS CARDS -->
+  <div id="cards-row">
+    <div class="card" id="card-crawled">
+      <div class="card-label">
+        <svg class="card-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0zM1.5 8a6.5 6.5 0 1 1 13 0 6.5 6.5 0 0 1-13 0z"/>
+          <path d="M8 4a.75.75 0 0 1 .75.75V7h2.25a.75.75 0 0 1 0 1.5H8a.75.75 0 0 1-.75-.75v-3A.75.75 0 0 1 8 4z"/>
+        </svg>
+        URLs Crawled
+      </div>
+      <div class="card-value" id="val-crawled">0</div>
+    </div>
+
+    <div class="card" id="card-queue">
+      <div class="card-label">
+        <svg class="card-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 2.5zm0 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 6.5zm0 4a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 0 1h-11A.5.5 0 0 1 2 10.5z"/>
+        </svg>
+        In Queue
+      </div>
+      <div class="card-value" id="val-queue">0</div>
+    </div>
+
+    <div class="card" id="card-links">
+      <div class="card-label">
+        <svg class="card-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M4.715 6.542 3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1.002 1.002 0 0 0-.154.199 2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4.018 4.018 0 0 1-.128-1.287z"/>
+          <path d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z"/>
+        </svg>
+        New Links
+      </div>
+      <div class="card-value" id="val-links">0</div>
+    </div>
+
+    <div class="card" id="card-errors">
+      <div class="card-label">
+        <svg class="card-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zm-1.006 5.032a.75.75 0 0 1 1.5 0v2.75a.75.75 0 0 1-1.5 0zm.75 5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5z"/>
+        </svg>
+        Errors
+      </div>
+      <div class="card-value" id="val-errors">0</div>
+    </div>
+
+    <div class="card" id="card-speed">
+      <div class="card-label">
+        <svg class="card-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 2a.5.5 0 0 1 .5.5V4a.5.5 0 0 1-1 0V2.5A.5.5 0 0 1 8 2M3.732 3.732a.5.5 0 0 1 .707 0l.915.914a.5.5 0 1 1-.708.708l-.914-.915a.5.5 0 0 1 0-.707M2 8a.5.5 0 0 1 .5-.5h1.586a.5.5 0 0 1 0 1H2.5A.5.5 0 0 1 2 8m9.5 0a.5.5 0 0 1 .5-.5h1.5a.5.5 0 0 1 0 1H12a.5.5 0 0 1-.5-.5m.754-4.246a.389.389 0 0 0-.527-.02L7.547 7.31A.91.91 0 1 0 8.85 8.569l3.434-4.297a.389.389 0 0 0-.029-.518z"/>
+          <path fill-rule="evenodd" d="M6.664 15.889A8 8 0 1 1 9.336.11a8 8 0 0 1-2.672 15.78zm-4.665-4.283A11.945 11.945 0 0 1 8 10c2.186 0 4.236.585 6.001 1.606a7 7 0 1 0-12.002 0z"/>
+        </svg>
+        Crawl Speed
+      </div>
+      <div class="card-value" id="val-speed">0.0 <span style="font-size:13px;color:var(--muted)">u/s</span></div>
+    </div>
+
+    <div class="card" id="card-elapsed">
+      <div class="card-label">
+        <svg class="card-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 3.5a.5.5 0 0 0-1 0V9a.5.5 0 0 0 .252.434l3.5 2a.5.5 0 0 0 .496-.868L8 8.71z"/>
+          <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16m7-8A7 7 0 1 1 1 8a7 7 0 0 1 14 0"/>
+        </svg>
+        Elapsed
+      </div>
+      <div class="card-value" id="val-elapsed">00:00:00</div>
+    </div>
+
+    <div class="card" id="card-workers">
+      <div class="card-label">
+        <svg class="card-icon" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6"/>
+        </svg>
+        Workers
+      </div>
+      <div class="card-value" id="val-workers">0</div>
+    </div>
+  </div>
+
+  <!-- MIDDLE ROW -->
+  <div id="middle-row">
+
+    <!-- Domain Table -->
+    <div class="panel" id="domain-panel">
+      <div class="panel-header">
+        <span class="panel-title">Domains</span>
+        <input type="text" id="domain-search" placeholder="Filter domains..." autocomplete="off" spellcheck="false">
+      </div>
+      <div id="domain-table-wrap" class="panel-body">
+        <table id="domain-table">
+          <thead>
+            <tr>
+              <th data-col="domain" class="sorted-asc">Domain<span class="sort-arrow"></span></th>
+              <th data-col="count" style="text-align:right">Count<span class="sort-arrow"></span></th>
+              <th data-col="last_seen">Last Seen<span class="sort-arrow"></span></th>
+            </tr>
+          </thead>
+          <tbody id="domain-tbody">
+            <tr><td colspan="3" class="empty-state">Waiting for data...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="domain-pagination">
+        <button class="page-btn" id="page-prev" disabled>Prev</button>
+        <span id="page-info">Page 1 of 1</span>
+        <button class="page-btn" id="page-next" disabled>Next</button>
+      </div>
+    </div>
+
+    <!-- URL Feed -->
+    <div class="panel" id="feed-panel">
+      <div class="panel-header">
+        <span class="panel-title">URL Feed</span>
+        <div id="feed-controls">
+          <button id="pause-btn">Pause</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div id="url-feed"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- BOTTOM ROW -->
+  <div id="bottom-row">
+
+    <!-- Speed Chart -->
+    <div class="panel" id="speed-panel">
+      <div class="panel-header">
+        <span class="panel-title">Crawl Speed — URLs/sec (last 5 min)</span>
+      </div>
+      <div class="panel-body" id="speed-canvas-wrap">
+        <canvas id="speed-canvas"></canvas>
+      </div>
+    </div>
+
+    <!-- Donut Chart -->
+    <div class="panel" id="donut-panel">
+      <div class="panel-header">
+        <span class="panel-title">Success vs Errors</span>
+      </div>
+      <div class="panel-body" id="donut-canvas-wrap">
+        <canvas id="donut-canvas"></canvas>
+      </div>
+      <div id="donut-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div><span id="legend-success">Success: 0</span></div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div><span id="legend-errors">Errors: 0</span></div>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /main -->
+
+<script>
+(function() {
+  'use strict';
+
+  // ---- Constants ----
+  const WS_URL = 'ws://' + window.location.host + '/ws';
+  const RECONNECT_DELAY = 2000;
+  const PAGE_SIZE = 50;
+  const MAX_FEED_ENTRIES = 100;
+  const CHART_WINDOW_MS = 5 * 60 * 1000;
+
+  // ---- State ----
+  let ws = null;
+  let reconnectTimer = null;
+  let feedPaused = false;
+  let feedQueue = [];
+  let feedEntries = [];
+  let domainData = [];
+  let domainFilter = '';
+  let sortCol = 'domain';
+  let sortDir = 1; // 1=asc, -1=desc
+  let currentPage = 0;
+  let speedHistory = [];
+  let totalSuccess = 0;
+  let totalErrors = 0;
+  let speedCanvasReady = false;
+  let donutCanvasReady = false;
+  let animationFrameId = null;
+
+  // ---- DOM refs ----
+  const connDot = document.getElementById('conn-dot');
+  const connLabel = document.getElementById('conn-label');
+  const valCrawled = document.getElementById('val-crawled');
+  const valQueue = document.getElementById('val-queue');
+  const valLinks = document.getElementById('val-links');
+  const valErrors = document.getElementById('val-errors');
+  const valSpeed = document.getElementById('val-speed');
+  const valElapsed = document.getElementById('val-elapsed');
+  const valWorkers = document.getElementById('val-workers');
+  const cardErrors = document.getElementById('card-errors');
+  const domainSearch = document.getElementById('domain-search');
+  const domainTbody = document.getElementById('domain-tbody');
+  const pageInfo = document.getElementById('page-info');
+  const pagePrev = document.getElementById('page-prev');
+  const pageNext = document.getElementById('page-next');
+  const urlFeed = document.getElementById('url-feed');
+  const pauseBtn = document.getElementById('pause-btn');
+  const speedCanvas = document.getElementById('speed-canvas');
+  const donutCanvas = document.getElementById('donut-canvas');
+  const legendSuccess = document.getElementById('legend-success');
+  const legendErrors = document.getElementById('legend-errors');
+
+  // ---- Utilities ----
+  function formatElapsed(seconds) {
+    const s = Math.floor(seconds);
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(sec).padStart(2, '0');
+  }
+
+  function timeAgo(timestamp) {
+    const now = Date.now() / 1000;
+    const diff = Math.floor(now - timestamp);
+    if (diff < 5) return 'just now';
+    if (diff < 60) return diff + 's ago';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return Math.floor(diff / 86400) + 'd ago';
+  }
+
+  function formatNum(n) {
+    if (n === undefined || n === null) return '0';
+    return Number(n).toLocaleString();
+  }
+
+  function getStatusClass(code) {
+    if (code === 0 || code === null || code === undefined) return 'status-0';
+    if (code >= 200 && code < 300) return 'status-2xx';
+    if (code >= 300 && code < 400) return 'status-3xx';
+    if (code >= 400 && code < 500) return 'status-4xx';
+    return 'status-5xx';
+  }
+
+  function flashValue(el) {
+    el.classList.remove('flash');
+    void el.offsetWidth;
+    el.classList.add('flash');
+  }
+
+  function setVal(el, val) {
+    const strVal = String(val);
+    if (el.dataset.lastVal !== strVal) {
+      el.dataset.lastVal = strVal;
+      flashValue(el);
+    }
+  }
+
+  // ---- Canvas sizing ----
+  function resizeCanvas(canvas) {
+    const wrap = canvas.parentElement;
+    const dpr = window.devicePixelRatio || 1;
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    if (canvas.width !== w * dpr || canvas.height !== h * dpr) {
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      canvas.style.width = w + 'px';
+      canvas.style.height = h + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+      return { w, h, ctx };
+    }
+    const ctx = canvas.getContext('2d');
+    return { w, h, ctx };
+  }
+
+  // ---- WebSocket ----
+  function setConnected(connected) {
+    if (connected) {
+      connDot.classList.add('connected');
+      connLabel.textContent = 'Connected';
+    } else {
+      connDot.classList.remove('connected');
+      connLabel.textContent = 'Disconnected';
+    }
+  }
+
+  function connect() {
+    if (ws) {
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.close();
+    }
+    try {
+      ws = new WebSocket(WS_URL);
+    } catch (e) {
+      scheduleReconnect();
+      return;
+    }
+
+    ws.onopen = function() {
+      setConnected(true);
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    };
+
+    ws.onmessage = function(evt) {
+      let msg;
+      try { msg = JSON.parse(evt.data); } catch(e) { return; }
+      if (msg.type === 'stats' && msg.data) {
+        handleStats(msg.data);
+      }
+    };
+
+    ws.onclose = function() {
+      setConnected(false);
+      scheduleReconnect();
+    };
+
+    ws.onerror = function() {
+      ws.close();
+    };
+  }
+
+  function scheduleReconnect() {
+    if (!reconnectTimer) {
+      reconnectTimer = setTimeout(function() {
+        reconnectTimer = null;
+        connect();
+      }, RECONNECT_DELAY);
+    }
+  }
+
+  // ---- Stats Handler ----
+  function handleStats(data) {
+    updateCards(data);
+    if (data.domains) updateDomainTable(data.domains);
+    if (data.recent_urls) updateUrlFeed(data.recent_urls);
+    if (data.speed_history) {
+      speedHistory = data.speed_history;
+    }
+    totalSuccess = data.total_success || 0;
+    totalErrors = data.total_errors || data.errors || 0;
+    scheduleRedraw();
+  }
+
+  // ---- Update Cards ----
+  function updateCards(data) {
+    const crawledVal = formatNum(data.urls_crawled);
+    valCrawled.textContent = crawledVal;
+    setVal(valCrawled, crawledVal);
+
+    const queueVal = formatNum(data.urls_in_queue);
+    valQueue.textContent = queueVal;
+    setVal(valQueue, queueVal);
+
+    const linksVal = formatNum(data.new_links_discovered);
+    valLinks.textContent = linksVal;
+    setVal(valLinks, linksVal);
+
+    const errVal = formatNum(data.errors);
+    valErrors.textContent = errVal;
+    setVal(valErrors, errVal);
+    if (data.errors > 0) {
+      cardErrors.classList.add('error-active');
+    } else {
+      cardErrors.classList.remove('error-active');
+    }
+
+    const speedVal = (data.speed || 0).toFixed(1);
+    valSpeed.innerHTML = speedVal + ' <span style="font-size:13px;color:var(--muted)">u/s</span>';
+    setVal(valSpeed, speedVal);
+
+    const elapsedVal = formatElapsed(data.elapsed || 0);
+    valElapsed.textContent = elapsedVal;
+    setVal(valElapsed, elapsedVal);
+
+    const workersVal = formatNum(data.active_workers);
+    valWorkers.textContent = workersVal;
+    setVal(valWorkers, workersVal);
+  }
+
+  // ---- Domain Table ----
+  function updateDomainTable(domains) {
+    domainData = domains || [];
+    currentPage = 0;
+    renderDomainTable();
+  }
+
+  function getFilteredSortedDomains() {
+    let filtered = domainData;
+    if (domainFilter) {
+      const q = domainFilter.toLowerCase();
+      filtered = domainData.filter(function(d) {
+        return d.domain && d.domain.toLowerCase().includes(q);
+      });
+    }
+    filtered = filtered.slice().sort(function(a, b) {
+      let va = a[sortCol], vb = b[sortCol];
+      if (typeof va === 'string') va = va.toLowerCase();
+      if (typeof vb === 'string') vb = vb.toLowerCase();
+      if (va < vb) return -sortDir;
+      if (va > vb) return sortDir;
+      return 0;
+    });
+    return filtered;
+  }
+
+  function renderDomainTable() {
+    const filtered = getFilteredSortedDomains();
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+    if (currentPage >= totalPages) currentPage = totalPages - 1;
+    const start = currentPage * PAGE_SIZE;
+    const page = filtered.slice(start, start + PAGE_SIZE);
+
+    if (page.length === 0) {
+      domainTbody.innerHTML = '<tr><td colspan="3" class="empty-state">No domains found</td></tr>';
+    } else {
+      domainTbody.innerHTML = page.map(function(d) {
+        return '<tr>' +
+          '<td class="domain-name">' + escHtml(d.domain || '') + '</td>' +
+          '<td class="url-count">' + formatNum(d.count) + '</td>' +
+          '<td class="last-seen">' + timeAgo(d.last_seen) + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    pageInfo.textContent = 'Page ' + (currentPage + 1) + ' of ' + totalPages;
+    pagePrev.disabled = currentPage === 0;
+    pageNext.disabled = currentPage >= totalPages - 1;
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // Column sort
+  document.querySelectorAll('#domain-table th[data-col]').forEach(function(th) {
+    th.addEventListener('click', function() {
+      const col = th.dataset.col;
+      if (sortCol === col) {
+        sortDir = -sortDir;
+      } else {
+        sortCol = col;
+        sortDir = 1;
+      }
+      document.querySelectorAll('#domain-table th').forEach(function(t) {
+        t.classList.remove('sorted-asc', 'sorted-desc');
+      });
+      th.classList.add(sortDir === 1 ? 'sorted-asc' : 'sorted-desc');
+      currentPage = 0;
+      renderDomainTable();
+    });
+  });
+
+  domainSearch.addEventListener('input', function() {
+    domainFilter = domainSearch.value.trim();
+    currentPage = 0;
+    renderDomainTable();
+  });
+
+  pagePrev.addEventListener('click', function() {
+    if (currentPage > 0) { currentPage--; renderDomainTable(); }
+  });
+
+  pageNext.addEventListener('click', function() {
+    const filtered = getFilteredSortedDomains();
+    const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+    if (currentPage < totalPages - 1) { currentPage++; renderDomainTable(); }
+  });
+
+  // ---- URL Feed ----
+  function updateUrlFeed(recentUrls) {
+    if (!recentUrls || recentUrls.length === 0) return;
+
+    if (!feedPaused) {
+      // Drain any queued entries
+      recentUrls = feedQueue.concat(recentUrls);
+      feedQueue = [];
+      appendFeedEntries(recentUrls);
+    } else {
+      feedQueue = feedQueue.concat(recentUrls);
+      if (feedQueue.length > MAX_FEED_ENTRIES) {
+        feedQueue = feedQueue.slice(-MAX_FEED_ENTRIES);
+      }
+    }
+  }
+
+  function appendFeedEntries(entries) {
+    const wasAtBottom = urlFeed.scrollHeight - urlFeed.scrollTop <= urlFeed.clientHeight + 10;
+
+    entries.forEach(function(item) {
+      feedEntries.push(item);
+      const div = document.createElement('div');
+      div.className = 'feed-entry';
+      const cls = getStatusClass(item.status);
+      const code = item.status === 0 ? 'ERR' : (item.status || '?');
+      div.innerHTML =
+        '<span class="status-badge ' + cls + '">' + code + '</span>' +
+        '<span class="feed-url" title="' + escHtml(item.url || '') + '">' + escHtml(item.url || '') + '</span>' +
+        '<span class="feed-time">' + timeAgo(item.timestamp) + '</span>';
+      urlFeed.appendChild(div);
+    });
+
+    // Trim to MAX_FEED_ENTRIES
+    while (urlFeed.children.length > MAX_FEED_ENTRIES) {
+      urlFeed.removeChild(urlFeed.firstChild);
+      feedEntries.shift();
+    }
+
+    if (wasAtBottom) {
+      urlFeed.scrollTop = urlFeed.scrollHeight;
+    }
+  }
+
+  pauseBtn.addEventListener('click', function() {
+    feedPaused = !feedPaused;
+    if (feedPaused) {
+      pauseBtn.textContent = 'Resume';
+      pauseBtn.classList.add('paused');
+    } else {
+      pauseBtn.textContent = 'Pause';
+      pauseBtn.classList.remove('paused');
+      // Flush queue
+      if (feedQueue.length > 0) {
+        appendFeedEntries(feedQueue);
+        feedQueue = [];
+      }
+    }
+  });
+
+  // ---- Drawing ----
+  function scheduleRedraw() {
+    if (!animationFrameId) {
+      animationFrameId = requestAnimationFrame(function() {
+        animationFrameId = null;
+        drawSpeedChart(speedHistory);
+        drawDonutChart(totalSuccess, totalErrors);
+      });
+    }
+  }
+
+  // ---- Speed Chart ----
+  function drawSpeedChart(history) {
+    const wrap = document.getElementById('speed-canvas-wrap');
+    const dpr = window.devicePixelRatio || 1;
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    if (w === 0 || h === 0) return;
+    if (speedCanvas.width !== Math.round(w * dpr) || speedCanvas.height !== Math.round(h * dpr)) {
+      speedCanvas.width = Math.round(w * dpr);
+      speedCanvas.height = Math.round(h * dpr);
+      speedCanvas.style.width = w + 'px';
+      speedCanvas.style.height = h + 'px';
+    }
+    const ctx = speedCanvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const PAD = { top: 16, right: 16, bottom: 36, left: 52 };
+    const cw = w - PAD.left - PAD.right;
+    const ch = h - PAD.top - PAD.bottom;
+
+    // Clear
+    ctx.clearRect(0, 0, w, h);
+
+    // Filter to last 5 minutes
+    const now = Date.now() / 1000;
+    const windowStart = now - CHART_WINDOW_MS / 1000;
+    let pts = (history || []).filter(function(p) { return p[0] >= windowStart; });
+
+    // Y range
+    const maxY = pts.length > 0 ? Math.max.apply(null, pts.map(function(p) { return p[1]; })) : 10;
+    const yMax = Math.max(maxY * 1.2, 1);
+
+    // Grid lines
+    const gridCount = 5;
+    ctx.strokeStyle = 'rgba(48,54,61,0.8)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 4]);
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '10px ' + getComputedStyle(document.body).getPropertyValue('--mono').trim();
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    for (let i = 0; i <= gridCount; i++) {
+      const yVal = (yMax / gridCount) * i;
+      const yPx = PAD.top + ch - (i / gridCount) * ch;
+      ctx.beginPath();
+      ctx.moveTo(PAD.left, yPx);
+      ctx.lineTo(PAD.left + cw, yPx);
+      ctx.stroke();
+      ctx.fillText(yVal.toFixed(1), PAD.left - 6, yPx);
+    }
+    ctx.setLineDash([]);
+
+    // X axis labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = '#8b949e';
+    for (let i = 0; i <= 5; i++) {
+      const tSec = windowStart + (i / 5) * (CHART_WINDOW_MS / 1000);
+      const xPx = PAD.left + (i / 5) * cw;
+      const secAgo = Math.floor(now - tSec);
+      const label = secAgo === 0 ? 'now' : '-' + secAgo + 's';
+      ctx.fillText(label, xPx, PAD.top + ch + 6);
+    }
+
+    // Axis lines
+    ctx.strokeStyle = '#30363d';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD.left, PAD.top);
+    ctx.lineTo(PAD.left, PAD.top + ch);
+    ctx.lineTo(PAD.left + cw, PAD.top + ch);
+    ctx.stroke();
+
+    if (pts.length < 2) {
+      ctx.restore();
+      return;
+    }
+
+    function toXY(p) {
+      const x = PAD.left + ((p[0] - windowStart) / (CHART_WINDOW_MS / 1000)) * cw;
+      const y = PAD.top + ch - (p[1] / yMax) * ch;
+      return [x, y];
+    }
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, PAD.top, 0, PAD.top + ch);
+    grad.addColorStop(0, 'rgba(88,166,255,0.25)');
+    grad.addColorStop(1, 'rgba(88,166,255,0.01)');
+
+    ctx.beginPath();
+    const first = toXY(pts[0]);
+    ctx.moveTo(first[0], PAD.top + ch);
+    ctx.lineTo(first[0], first[1]);
+    for (let i = 1; i < pts.length; i++) {
+      const [px, py] = toXY(pts[i]);
+      ctx.lineTo(px, py);
+    }
+    const last = toXY(pts[pts.length - 1]);
+    ctx.lineTo(last[0], PAD.top + ch);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(first[0], first[1]);
+    for (let i = 1; i < pts.length; i++) {
+      const [px, py] = toXY(pts[i]);
+      ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // Current point dot
+    ctx.beginPath();
+    ctx.arc(last[0], last[1], 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#58a6ff';
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // ---- Donut Chart ----
+  function drawDonutChart(success, errors) {
+    const wrap = document.getElementById('donut-canvas-wrap');
+    const dpr = window.devicePixelRatio || 1;
+    const w = wrap.clientWidth;
+    const h = wrap.clientHeight;
+    if (w === 0 || h === 0) return;
+    if (donutCanvas.width !== Math.round(w * dpr) || donutCanvas.height !== Math.round(h * dpr)) {
+      donutCanvas.width = Math.round(w * dpr);
+      donutCanvas.height = Math.round(h * dpr);
+      donutCanvas.style.width = w + 'px';
+      donutCanvas.style.height = h + 'px';
+    }
+    const ctx = donutCanvas.getContext('2d');
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = Math.min(w, h) / 2 - 20;
+    const innerR = r * 0.58;
+    const total = success + errors;
+
+    legendSuccess.textContent = 'Success: ' + formatNum(success);
+    legendErrors.textContent = 'Errors: ' + formatNum(errors);
+
+    if (total === 0) {
+      // Empty ring
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.arc(cx, cy, innerR, 0, Math.PI * 2, true);
+      ctx.fillStyle = 'rgba(48,54,61,0.5)';
+      ctx.fill();
+
+      ctx.fillStyle = '#8b949e';
+      ctx.font = 'bold 16px ' + getComputedStyle(document.body).getPropertyValue('--mono').trim();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('0', cx, cy - 8);
+      ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--sans').trim();
+      ctx.fillText('no data', cx, cy + 12);
+      ctx.restore();
+      return;
+    }
+
+    const startAngle = -Math.PI / 2;
+    const successAngle = (success / total) * Math.PI * 2;
+    const errorAngle = (errors / total) * Math.PI * 2;
+
+    // Draw success arc
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, startAngle, startAngle + successAngle);
+    ctx.arc(cx, cy, innerR, startAngle + successAngle, startAngle, true);
+    ctx.closePath();
+    ctx.fillStyle = '#3fb950';
+    ctx.fill();
+
+    // Draw error arc
+    if (errorAngle > 0.001) {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.arc(cx, cy, r, startAngle + successAngle, startAngle + successAngle + errorAngle);
+      ctx.arc(cx, cy, innerR, startAngle + successAngle + errorAngle, startAngle + successAngle, true);
+      ctx.closePath();
+      ctx.fillStyle = '#f85149';
+      ctx.fill();
+    }
+
+    // Gap between segments
+    ctx.strokeStyle = '#0d1117';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Center text
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#c9d1d9';
+    ctx.font = 'bold 18px ' + getComputedStyle(document.body).getPropertyValue('--mono').trim();
+    ctx.fillText(formatNum(total), cx, cy - 10);
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '11px ' + getComputedStyle(document.body).getPropertyValue('--sans').trim();
+    ctx.fillText('total', cx, cy + 12);
+
+    ctx.restore();
+  }
+
+  // ---- Resize observer ----
+  const ro = new ResizeObserver(function() {
+    scheduleRedraw();
+  });
+  ro.observe(document.getElementById('speed-canvas-wrap'));
+  ro.observe(document.getElementById('donut-canvas-wrap'));
+
+  // ---- Periodic timestamp refresh ----
+  setInterval(function() {
+    // Refresh "time ago" in domain table
+    renderDomainTable();
+    // Refresh timestamps in feed entries (rebuild)
+    const items = urlFeed.querySelectorAll('.feed-entry');
+    items.forEach(function(el, i) {
+      const ts = feedEntries[feedEntries.length - items.length + i];
+      if (ts) {
+        const timeEl = el.querySelector('.feed-time');
+        if (timeEl) timeEl.textContent = timeAgo(ts.timestamp);
+      }
+    });
+  }, 10000);
+
+  // ---- Initial draw ----
+  drawSpeedChart([]);
+  drawDonutChart(0, 0);
+
+  // ---- Start ----
+  connect();
+
+})();
+</script>
+</body>
+</html>

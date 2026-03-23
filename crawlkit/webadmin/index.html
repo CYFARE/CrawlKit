@@ -1,0 +1,2396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CrawlKit v3.0 Admin</title>
+<style>
+/* ===== RESET & BASE ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--card:#161b22;--border:#30363d;
+  --cyan:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d29922;--magenta:#f778ba;
+  --text:#c9d1d9;--text-muted:#8b949e;--text-bright:#f0f6fc;
+  --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+  --font-mono:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  --sidebar-w:220px;--topbar-h:48px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-ui);font-size:14px;line-height:1.5}
+a{color:var(--cyan);text-decoration:none}
+a:hover{text-decoration:underline}
+input,select,textarea,button{font-family:inherit;font-size:inherit;color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:6px 10px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--cyan)}
+button{cursor:pointer;background:var(--card);border-color:var(--border);padding:6px 14px;border-radius:6px;transition:background .15s}
+button:hover{background:var(--border)}
+button.primary{background:var(--cyan);color:#000;border-color:var(--cyan);font-weight:600}
+button.primary:hover{opacity:.85}
+button.danger{background:var(--red);color:#fff;border-color:var(--red)}
+button.danger:hover{opacity:.85}
+button.success{background:var(--green);color:#000;border-color:var(--green)}
+button.warning{background:var(--yellow);color:#000;border-color:var(--yellow)}
+table{width:100%;border-collapse:collapse}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--border)}
+th{color:var(--text-muted);font-weight:600;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:var(--text)}
+td{font-family:var(--font-mono);font-size:13px}
+/* scrollbar */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+/* ===== LAYOUT ===== */
+#app{display:flex;height:100vh;overflow:hidden}
+#sidebar{width:var(--sidebar-w);min-width:var(--sidebar-w);background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;transition:width .2s,min-width .2s;overflow:hidden}
+#sidebar.collapsed{width:50px;min-width:50px}
+#sidebar.collapsed .nav-label,#sidebar.collapsed .sidebar-title{display:none}
+#sidebar.collapsed .nav-icon{margin-right:0}
+.sidebar-header{display:flex;align-items:center;justify-content:space-between;padding:12px;border-bottom:1px solid var(--border)}
+.sidebar-title{font-weight:700;color:var(--text-bright);white-space:nowrap}
+#sidebar-toggle{background:none;border:none;color:var(--text-muted);font-size:18px;padding:4px}
+.sidebar-nav{flex:1;padding:8px 0}
+.nav-item{display:flex;align-items:center;padding:10px 16px;color:var(--text-muted);cursor:pointer;transition:background .15s;white-space:nowrap}
+.nav-item:hover,.nav-item.active{background:var(--bg);color:var(--text-bright)}
+.nav-item.active{border-left:3px solid var(--cyan);padding-left:13px}
+.nav-icon{margin-right:10px;font-size:16px;width:20px;text-align:center}
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#topbar{height:var(--topbar-h);min-height:var(--topbar-h);background:var(--card);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px}
+.topbar-title{font-weight:700;color:var(--text-bright);font-size:15px}
+.ws-status{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)}
+.ws-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.ws-dot.connected{background:var(--green)}
+.ws-dot.disconnected{background:var(--red)}
+#content{flex:1;overflow-y:auto;padding:20px}
+
+/* ===== CARDS ===== */
+.card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:16px}
+.stat-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 16px;text-align:center}
+.stat-card .label{font-size:12px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.stat-card .value{font-size:24px;font-weight:700;font-family:var(--font-mono);color:var(--text-bright)}
+.stat-card .value.cyan{color:var(--cyan)}
+.stat-card .value.green{color:var(--green)}
+.stat-card .value.yellow{color:var(--yellow)}
+.stat-card .value.red{color:var(--red)}
+
+/* ===== CONTROL BAR ===== */
+.control-bar{display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+.control-bar h2{font-size:16px;color:var(--text-bright);margin-right:auto}
+
+/* ===== BADGES ===== */
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.badge.dw{background:rgba(88,166,255,.15);color:var(--cyan)}
+.badge.cw{background:rgba(63,185,80,.15);color:var(--green)}
+.badge.running{background:rgba(63,185,80,.15);color:var(--green)}
+.badge.paused{background:rgba(210,153,34,.15);color:var(--yellow)}
+.badge.completed{background:rgba(88,166,255,.15);color:var(--cyan)}
+.badge.stopped{background:rgba(139,148,158,.15);color:var(--text-muted)}
+.badge.error{background:rgba(248,81,73,.15);color:var(--red)}
+.badge.onion{background:rgba(247,120,186,.15);color:var(--magenta)}
+
+/* ===== TOGGLE SWITCH ===== */
+.toggle-wrap{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text-muted)}
+.toggle{position:relative;width:36px;height:20px;cursor:pointer}
+.toggle input{opacity:0;width:0;height:0}
+.toggle .slider{position:absolute;inset:0;background:var(--border);border-radius:10px;transition:background .2s}
+.toggle .slider::before{content:'';position:absolute;width:14px;height:14px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .2s}
+.toggle input:checked+.slider{background:var(--cyan)}
+.toggle input:checked+.slider::before{transform:translateX(16px)}
+
+/* ===== JOB CARDS ===== */
+.job-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.job-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:border-color .15s}
+.job-card:hover{border-color:var(--cyan)}
+.job-card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.job-card .name{font-weight:600;color:var(--text-bright)}
+.job-card .meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}
+
+/* ===== MODAL ===== */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:10px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;padding:24px}
+.modal h3{margin-bottom:16px;color:var(--text-bright)}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;margin-bottom:4px;font-size:13px;color:var(--text-muted);font-weight:600}
+.form-group input,.form-group select,.form-group textarea{width:100%}
+.form-group textarea{min-height:80px;resize:vertical}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.checkbox-group{display:flex;flex-wrap:wrap;gap:10px;padding:4px 0}
+.checkbox-group label{display:flex;align-items:center;gap:4px;cursor:pointer;font-size:13px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+
+/* ===== LOGIN ===== */
+#login-page{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg)}
+.login-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:32px;width:360px}
+.login-card h2{text-align:center;margin-bottom:20px;color:var(--text-bright)}
+.login-card .form-group{margin-bottom:16px}
+.login-card .error-msg{color:var(--red);font-size:13px;margin-bottom:10px;min-height:20px}
+.login-card button{width:100%}
+
+/* ===== JOB DETAIL ===== */
+.two-col{display:grid;grid-template-columns:3fr 2fr;gap:16px;margin-bottom:16px}
+.url-feed{max-height:350px;overflow-y:auto;font-family:var(--font-mono);font-size:12px}
+.url-feed .item{padding:4px 8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;word-break:break-all}
+.url-feed .item .status{min-width:32px;text-align:center}
+.domain-table-wrap{max-height:350px;overflow-y:auto}
+.pagination{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--text-muted)}
+.pagination button{padding:4px 10px;font-size:12px}
+.chart-row{display:grid;grid-template-columns:3fr 2fr;gap:16px}
+.chart-container{position:relative}
+.chart-container canvas{width:100%;height:250px}
+
+/* ===== RESULTS ===== */
+.filter-bar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.filter-bar input,.filter-bar select{max-width:200px}
+.results-table-wrap{overflow-x:auto}
+.truncate{max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.slide-panel{position:fixed;top:0;right:0;width:420px;height:100vh;background:var(--card);border-left:1px solid var(--border);z-index:900;overflow-y:auto;padding:20px;transform:translateX(100%);transition:transform .2s}
+.slide-panel.open{transform:translateX(0)}
+.slide-panel .close-btn{position:absolute;top:12px;right:12px;background:none;border:none;color:var(--text-muted);font-size:20px}
+.slide-panel h3{margin-bottom:12px;color:var(--text-bright)}
+.slide-panel .detail-row{margin-bottom:8px;font-size:13px}
+.slide-panel .detail-row .dl{font-weight:600;color:var(--text-muted)}
+.slide-panel .detail-row .dv{color:var(--text);font-family:var(--font-mono);word-break:break-all}
+.slide-panel iframe{width:100%;height:300px;border:1px solid var(--border);border-radius:6px;background:#fff;margin-top:8px}
+.export-dropdown{position:relative;display:inline-block}
+.export-dropdown .dropdown-menu{position:absolute;top:100%;right:0;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:4px 0;display:none;z-index:100;min-width:120px}
+.export-dropdown.open .dropdown-menu{display:block}
+.export-dropdown .dropdown-menu button{display:block;width:100%;text-align:left;border:none;border-radius:0;padding:6px 14px;font-size:13px}
+
+/* ===== CONFIG ===== */
+.profile-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:16px}
+.profile-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:border-color .15s}
+.profile-card:hover,.profile-card.selected{border-color:var(--cyan)}
+.profile-card .pname{font-weight:600;color:var(--text-bright);margin-bottom:6px}
+.profile-card .pmeta{font-size:12px;color:var(--text-muted)}
+.config-editor{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:20px}
+.config-editor h3{margin-bottom:14px;color:var(--text-bright)}
+
+/* ===== SEEDS ===== */
+.seed-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.seed-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:border-color .15s}
+.seed-card:hover,.seed-card.selected{border-color:var(--cyan)}
+.seed-card .sname{font-weight:600;color:var(--text-bright)}
+.seed-card .scount{font-size:12px;color:var(--text-muted);margin-top:4px}
+.seed-editor textarea{width:100%;min-height:300px;font-family:var(--font-mono);font-size:13px;resize:vertical}
+
+/* ===== GRAPH ===== */
+#graph-container{position:relative;width:100%;height:100%}
+#graph-canvas{width:100%;height:100%;display:block}
+#graph-tooltip{position:absolute;background:var(--card);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;font-family:var(--font-mono);color:var(--text);pointer-events:none;display:none;z-index:10;white-space:nowrap}
+
+/* ===== CAMPAIGN CARDS ===== */
+.campaign-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.campaign-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px;cursor:pointer;transition:border-color .15s}
+.campaign-card:hover{border-color:var(--cyan)}
+.campaign-card .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.campaign-card .name{font-weight:600;color:var(--text-bright)}
+.campaign-card .desc{font-size:12px;color:var(--text-muted);margin-bottom:8px;max-height:40px;overflow:hidden}
+.campaign-card .meta{display:flex;gap:12px;font-size:12px;color:var(--text-muted);font-family:var(--font-mono)}
+
+/* ===== DOMAINS PAGE (GOLD ACCENT) ===== */
+.domains-page .stat-card .value{color:var(--yellow)}
+.domains-page .stat-card .value.cyan{color:var(--cyan)}
+.tab-bar{display:flex;gap:0;margin-bottom:16px;border-bottom:2px solid var(--border)}
+.tab-bar .tab{padding:8px 18px;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-2px;font-weight:600;font-size:13px;transition:color .15s,border-color .15s}
+.tab-bar .tab:hover{color:var(--text)}
+.tab-bar .tab.active{color:var(--cyan);border-bottom-color:var(--cyan)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:900px){
+  .two-col,.chart-row{grid-template-columns:1fr}
+  .form-row{grid-template-columns:1fr}
+  #sidebar{position:fixed;z-index:500;height:100vh}
+  #sidebar.collapsed{width:0;min-width:0;border:none}
+  .slide-panel{width:100%}
+}
+</style>
+</head>
+<body>
+
+<div id="app" style="display:none">
+  <nav id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-title">CrawlKit</span>
+      <button id="sidebar-toggle" title="Toggle sidebar">&#9776;</button>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item" data-route="#/dashboard"><span class="nav-icon">&#9635;</span><span class="nav-label">Dashboard</span></div>
+      <div class="nav-item" data-route="#/results"><span class="nav-icon">&#9733;</span><span class="nav-label">Results</span></div>
+      <div class="nav-item" data-route="#/campaigns"><span class="nav-icon">&#128193;</span><span class="nav-label">Campaigns</span></div>
+      <div class="nav-item" data-route="#/domains"><span class="nav-icon">&#127760;</span><span class="nav-label">Domains</span></div>
+      <div class="nav-item" data-route="#/config"><span class="nav-icon">&#9881;</span><span class="nav-label">Config</span></div>
+      <div class="nav-item" data-route="#/seeds"><span class="nav-icon">&#9752;</span><span class="nav-label">Seeds</span></div>
+      <div class="nav-item" data-route="logout"><span class="nav-icon">&#10140;</span><span class="nav-label">Logout</span></div>
+    </div>
+  </nav>
+  <div id="main">
+    <div id="topbar">
+      <span class="topbar-title">CrawlKit v3.0 Admin</span>
+      <span class="ws-status"><span class="ws-dot disconnected" id="ws-dot"></span><span id="ws-label">Disconnected</span></span>
+    </div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<div id="login-page" style="display:none">
+  <div class="login-card">
+    <h2>CrawlKit Admin</h2>
+    <div class="error-msg" id="login-error"></div>
+    <div class="form-group">
+      <label>Username</label>
+      <input type="text" id="login-user" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-pass" autocomplete="current-password">
+    </div>
+    <button class="primary" id="login-btn">Sign In</button>
+  </div>
+</div>
+
+<div class="slide-panel" id="result-panel">
+  <button class="close-btn" id="panel-close">&times;</button>
+  <h3>Result Detail</h3>
+  <div id="panel-body"></div>
+</div>
+
+<script>
+/* ================================================================
+   CrawlKit v3.0 Admin SPA
+   All-in-one: routing, WebSocket, Canvas charts, WebGL graph
+   ================================================================ */
+
+// ─── State ───
+const S = {
+  authenticated: false,
+  jobs: [],
+  currentJob: null,
+  jobDetail: null,
+  profiles: [],
+  seeds: [],
+  results: [],
+  resultsMeta: { page: 1, total: 0, sort: 'timestamp', sortDir: 'desc' },
+  selectedProfile: null,
+  selectedSeed: null,
+  wsConnected: false,
+  graphMode: false,
+  urlFeedPaused: false,
+  domainPage: 1,
+  speedHistory: [],
+  dashSpeedHistory: [],
+  sharedDedup: false,
+  sharedExport: false,
+  campaigns: [],
+  selectedCampaign: null,
+  globalStats: {},
+};
+
+// ─── API Helper ───
+async function api(path, opts = {}) {
+  const res = await fetch(path, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...opts.headers },
+    credentials: 'same-origin',
+  });
+  if (res.status === 401) {
+    navigateTo('#/login');
+    throw new Error('Unauthorized');
+  }
+  return res;
+}
+
+// ─── WebSocket ───
+let ws = null;
+let lastResultsRefresh = 0;
+let lastGraphRefresh = 0;
+function connectWS() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { updateConnectionStatus(true); };
+  ws.onclose = () => { updateConnectionStatus(false); setTimeout(connectWS, 2000); };
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'jobs_update') updateDashboard(msg.data);
+    if (msg.type === 'job_detail') updateJobDetail(msg.data);
+    // Live-refresh results table (throttled 3s)
+    if (msg.type === 'jobs_update' || msg.type === 'job_detail') {
+      const route = parseRoute(getRoute());
+      if (route.page === 'results' && Date.now() - lastResultsRefresh > 3000) {
+        lastResultsRefresh = Date.now();
+        loadResults();
+      }
+      // Live-refresh graph view (throttled 5s)
+      if (route.page === 'results' && S.graphMode && Date.now() - lastGraphRefresh > 5000) {
+        lastGraphRefresh = Date.now();
+        loadGraph();
+      }
+    }
+  };
+}
+
+function updateConnectionStatus(connected) {
+  S.wsConnected = connected;
+  const dot = document.getElementById('ws-dot');
+  const label = document.getElementById('ws-label');
+  if (dot) {
+    dot.className = 'ws-dot ' + (connected ? 'connected' : 'disconnected');
+  }
+  if (label) {
+    label.textContent = connected ? 'Connected' : 'Disconnected';
+  }
+}
+
+function wsSend(data) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(data));
+  }
+}
+
+// ─── Router ───
+function navigateTo(hash) {
+  location.hash = hash;
+}
+
+function getRoute() {
+  const h = location.hash || '#/login';
+  return h;
+}
+
+function parseRoute(hash) {
+  if (hash.startsWith('#/jobs/')) {
+    return { page: 'job_detail', id: hash.replace('#/jobs/', '') };
+  }
+  if (hash.startsWith('#/campaigns/')) {
+    return { page: 'campaign_detail', id: hash.replace('#/campaigns/', '') };
+  }
+  const map = {
+    '#/login': 'login',
+    '#/dashboard': 'dashboard',
+    '#/results': 'results',
+    '#/config': 'config',
+    '#/seeds': 'seeds',
+    '#/campaigns': 'campaigns',
+    '#/domains': 'domains',
+  };
+  return { page: map[hash] || 'login', id: null };
+}
+
+let previousRoute = null;
+async function handleRoute() {
+  const hash = getRoute();
+  const route = parseRoute(hash);
+
+  // Unsubscribe from previous job detail
+  if (previousRoute && previousRoute.page === 'job_detail') {
+    wsSend({ unsubscribe: true });
+  }
+  previousRoute = route;
+
+  if (route.page === 'login') {
+    showLogin();
+    return;
+  }
+
+  if (!S.authenticated) {
+    navigateTo('#/login');
+    return;
+  }
+
+  showApp();
+  updateNavActive(hash);
+  const content = document.getElementById('content');
+
+  switch (route.page) {
+    case 'dashboard': await renderDashboard(content); break;
+    case 'job_detail': await renderJobDetail(content, route.id); break;
+    case 'results': await renderResults(content); break;
+    case 'campaigns': await renderCampaigns(content); break;
+    case 'campaign_detail': await renderCampaignDetail(content, route.id); break;
+    case 'domains': await renderDomainsPage(content); break;
+    case 'config': await renderConfig(content); break;
+    case 'seeds': await renderSeeds(content); break;
+    default: navigateTo('#/dashboard');
+  }
+}
+
+function showLogin() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-page').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('app').style.display = 'flex';
+  document.getElementById('login-page').style.display = 'none';
+}
+
+function updateNavActive(hash) {
+  document.querySelectorAll('.nav-item').forEach(el => {
+    const r = el.dataset.route;
+    if (r === 'logout') return;
+    el.classList.toggle('active', hash.startsWith(r));
+  });
+}
+
+// ─── Auth ───
+async function checkAuth() {
+  try {
+    const res = await api('/api/auth/status');
+    if (res.ok) {
+      const data = await res.json();
+      S.authenticated = !!data.authenticated;
+    } else {
+      S.authenticated = false;
+    }
+  } catch {
+    S.authenticated = false;
+  }
+}
+
+async function doLogin() {
+  const user = document.getElementById('login-user').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-error');
+  errEl.textContent = '';
+  if (!user || !pass) {
+    errEl.textContent = 'Please enter username and password.';
+    return;
+  }
+  try {
+    const res = await api('/api/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: user, password: pass }),
+    });
+    if (res.ok) {
+      S.authenticated = true;
+      connectWS();
+      navigateTo('#/dashboard');
+    } else {
+      const d = await res.json().catch(() => ({}));
+      errEl.textContent = d.error || 'Invalid credentials.';
+    }
+  } catch (err) {
+    errEl.textContent = 'Connection error.';
+  }
+}
+
+async function doLogout() {
+  try { await api('/api/logout', { method: 'POST' }); } catch {}
+  S.authenticated = false;
+  if (ws) ws.close();
+  navigateTo('#/login');
+}
+
+// ─── Helpers ───
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function formatNum(n) {
+  if (n == null) return '0';
+  return Number(n).toLocaleString();
+}
+
+function formatTime(secs) {
+  if (!secs && secs !== 0) return '--';
+  const s = Math.floor(secs);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (h > 0) return `${h}h ${m}m ${sec}s`;
+  if (m > 0) return `${m}m ${sec}s`;
+  return `${sec}s`;
+}
+
+function statusBadge(status) {
+  return `<span class="badge ${esc(status)}">${esc(status)}</span>`;
+}
+
+function scopeBadge(scope) {
+  const cls = scope === 'dw' ? 'dw' : 'cw';
+  const label = scope === 'dw' ? 'DW' : 'CW';
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+function statusCodeBadge(code) {
+  if (!code) return '<span class="badge stopped">--</span>';
+  if (code >= 200 && code < 300) return `<span class="badge running">${code}</span>`;
+  if (code >= 300 && code < 400) return `<span class="badge paused">${code}</span>`;
+  if (code >= 400 && code < 500) return `<span class="badge error">${code}</span>`;
+  if (code >= 500) return `<span class="badge error">${code}</span>`;
+  return `<span class="badge stopped">${code}</span>`;
+}
+
+function truncate(s, max) {
+  if (!s) return '';
+  return s.length > max ? s.slice(0, max) + '...' : s;
+}
+
+// ─── Dashboard ───
+function buildJobCardsHTML(jobs) {
+  return jobs.map(j => `
+    <div class="job-card" data-id="${esc(j.id)}">
+      <div class="top">
+        <span class="name">${esc(j.name || j.id)}</span>
+        <span>${scopeBadge(j.scope)} ${statusBadge(j.status)}</span>
+      </div>
+      <div class="meta">
+        <span>URLs: ${formatNum(j.stats?.urls_crawled || 0)}</span>
+        <span>${(j.stats?.speed || 0).toFixed(1)} URLs/s</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function bindJobCards(container) {
+  container.querySelectorAll('.job-card').forEach(card => {
+    card.onclick = () => navigateTo('#/jobs/' + card.dataset.id);
+  });
+}
+
+async function renderDashboard(container) {
+  try {
+    const res = await api('/api/jobs');
+    if (res.ok) S.jobs = await res.json();
+  } catch {}
+
+  const jobs = S.jobs || [];
+  const running = jobs.filter(j => j.status === 'running').length;
+  const paused = jobs.filter(j => j.status === 'paused').length;
+  const completed = jobs.filter(j => j.status === 'completed').length;
+  const totalUrls = jobs.reduce((a, j) => a + (j.stats?.urls_crawled || 0), 0);
+  const totalErrors = jobs.reduce((a, j) => a + (j.stats?.errors || 0), 0);
+
+  container.innerHTML = `
+    <div class="stat-cards">
+      <div class="stat-card"><div class="label">Total Jobs</div><div class="value cyan" id="dash-total-jobs">${jobs.length}</div></div>
+      <div class="stat-card"><div class="label">Running</div><div class="value green" id="dash-running">${running}</div></div>
+      <div class="stat-card"><div class="label">Paused</div><div class="value yellow" id="dash-paused">${paused}</div></div>
+      <div class="stat-card"><div class="label">Completed</div><div class="value cyan" id="dash-completed">${completed}</div></div>
+      <div class="stat-card"><div class="label">Total URLs</div><div class="value" id="dash-total-urls">${formatNum(totalUrls)}</div></div>
+      <div class="stat-card"><div class="label">Total Errors</div><div class="value red" id="dash-total-errors">${formatNum(totalErrors)}</div></div>
+    </div>
+    <div class="control-bar">
+      <h2>Jobs</h2>
+      <button class="primary" id="btn-new-crawl">+ New Crawl</button>
+      <div class="toggle-wrap">Shared Dedup<label class="toggle"><input type="checkbox" id="toggle-dedup" ${S.sharedDedup ? 'checked' : ''}><span class="slider"></span></label></div>
+      <div class="toggle-wrap">Shared Export<label class="toggle"><input type="checkbox" id="toggle-export" ${S.sharedExport ? 'checked' : ''}><span class="slider"></span></label></div>
+    </div>
+    <div class="job-cards" id="job-cards-grid">
+      ${buildJobCardsHTML(jobs)}
+    </div>
+    <div class="analytics-section">
+      <div class="stat-cards">
+        <div class="stat-card"><div class="label">Total Domains</div><div class="value cyan" id="dash-domains">0</div></div>
+        <div class="stat-card"><div class="label">Total Links Found</div><div class="value green" id="dash-links">0</div></div>
+        <div class="stat-card"><div class="label">Avg Speed</div><div class="value" id="dash-avg-speed">0 URLs/s</div></div>
+        <div class="stat-card"><div class="label">Uptime</div><div class="value" id="dash-uptime">0s</div></div>
+      </div>
+      <div class="card" style="margin-top:16px;padding:16px">
+        <h3 style="margin:0 0 12px 0;color:var(--text-bright)">Aggregate Crawl Speed</h3>
+        <canvas id="dash-speed-chart" width="900" height="220" style="width:100%;height:220px"></canvas>
+      </div>
+    </div>
+    <h3 style="margin:20px 0 12px;color:var(--text-bright)">All-Time Statistics</h3>
+    <div class="stat-cards" id="dash-alltime-stats">
+      <div class="stat-card"><div class="label">Total Campaigns</div><div class="value cyan" id="dash-at-campaigns">--</div></div>
+      <div class="stat-card"><div class="label">Historical Jobs</div><div class="value cyan" id="dash-at-jobs">--</div></div>
+      <div class="stat-card"><div class="label">Total Results</div><div class="value green" id="dash-at-results">--</div></div>
+      <div class="stat-card"><div class="label">Unique URLs</div><div class="value" id="dash-at-urls">--</div></div>
+      <div class="stat-card"><div class="label">Unique Domains</div><div class="value yellow" id="dash-at-domains">--</div></div>
+    </div>
+  `;
+
+  document.getElementById('btn-new-crawl').onclick = () => openNewCrawlModal();
+  document.getElementById('toggle-dedup').onchange = (e) => { S.sharedDedup = e.target.checked; };
+  document.getElementById('toggle-export').onchange = (e) => { S.sharedExport = e.target.checked; };
+
+  bindJobCards(container);
+
+  // Compute and display analytics
+  const totalLinks = jobs.reduce((a, j) => a + (j.stats?.new_links_discovered || 0), 0);
+  const totalDomains = jobs.reduce((a, j) => a + Object.keys(j.stats?.domains || {}).length, 0);
+  const runningJobs = jobs.filter(j => j.status === 'running');
+  const avgSpeed = runningJobs.length ? runningJobs.reduce((a, j) => a + (j.stats?.speed || 0), 0) / runningJobs.length : 0;
+  document.getElementById('dash-domains').textContent = formatNum(totalDomains);
+  document.getElementById('dash-links').textContent = formatNum(totalLinks);
+  document.getElementById('dash-avg-speed').textContent = avgSpeed.toFixed(1) + ' URLs/s';
+
+  // Uptime timer (start once)
+  if (!S._uptimeInterval) {
+    S._dashStartTime = Date.now();
+    S._uptimeInterval = setInterval(() => {
+      const el = document.getElementById('dash-uptime');
+      if (el) el.textContent = formatTime((Date.now() - S._dashStartTime) / 1000);
+    }, 1000);
+  }
+
+  // Initial dashboard speed chart
+  drawLineChart('dash-speed-chart', S.dashSpeedHistory, 'Total URLs/sec');
+
+  // Load all-time statistics from analytics API
+  try {
+    const statsRes = await api('/api/analytics/stats');
+    if (statsRes.ok) {
+      S.globalStats = await statsRes.json();
+      const gs = S.globalStats;
+      const el2 = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+      el2('dash-at-campaigns', formatNum(gs.total_campaigns || 0));
+      el2('dash-at-jobs', formatNum(gs.total_jobs || 0));
+      el2('dash-at-results', formatNum(gs.total_results || 0));
+      el2('dash-at-urls', formatNum(gs.unique_urls || 0));
+      el2('dash-at-domains', formatNum(gs.unique_domains || 0));
+    }
+  } catch {}
+}
+
+function updateDashboard(data) {
+  if (!data) return;
+  S.jobs = data.jobs || data;
+  const route = parseRoute(getRoute());
+  if (route.page !== 'dashboard') return;
+
+  const jobs = S.jobs || [];
+  const running = jobs.filter(j => j.status === 'running').length;
+  const paused = jobs.filter(j => j.status === 'paused').length;
+  const completed = jobs.filter(j => j.status === 'completed').length;
+  const totalUrls = jobs.reduce((a, j) => a + (j.stats?.urls_crawled || 0), 0);
+  const totalErrors = jobs.reduce((a, j) => a + (j.stats?.errors || 0), 0);
+
+  // Surgically update stat cards
+  const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  el('dash-total-jobs', jobs.length);
+  el('dash-running', running);
+  el('dash-paused', paused);
+  el('dash-completed', completed);
+  el('dash-total-urls', formatNum(totalUrls));
+  el('dash-total-errors', formatNum(totalErrors));
+
+  // Rebuild job cards grid only
+  const grid = document.getElementById('job-cards-grid');
+  if (grid) {
+    grid.innerHTML = buildJobCardsHTML(jobs);
+    bindJobCards(grid);
+  }
+
+  // Update analytics
+  const totalLinks = jobs.reduce((a, j) => a + (j.stats?.new_links_discovered || 0), 0);
+  const totalDomains = jobs.reduce((a, j) => a + Object.keys(j.stats?.domains || {}).length, 0);
+  const runningJobs = jobs.filter(j => j.status === 'running');
+  const avgSpeed = runningJobs.length ? runningJobs.reduce((a, j) => a + (j.stats?.speed || 0), 0) / runningJobs.length : 0;
+  const totalSpeed = jobs.reduce((a, j) => a + (j.stats?.speed || 0), 0);
+  el('dash-domains', formatNum(totalDomains));
+  el('dash-links', formatNum(totalLinks));
+  el('dash-avg-speed', avgSpeed.toFixed(1) + ' URLs/s');
+
+  // Track aggregate speed history (10-minute window)
+  S.dashSpeedHistory.push({ t: Date.now(), v: totalSpeed });
+  const tenMin = 10 * 60 * 1000;
+  S.dashSpeedHistory = S.dashSpeedHistory.filter(p => Date.now() - p.t < tenMin);
+  drawLineChart('dash-speed-chart', S.dashSpeedHistory, 'Total URLs/sec');
+}
+
+// ─── New Crawl Modal ───
+async function openNewCrawlModal(prefillCampaignId) {
+  let profiles = [];
+  let seedFiles = [];
+  let campaigns = [];
+  try {
+    const [pRes, sRes, cRes] = await Promise.all([api('/api/profiles'), api('/api/seeds'), api('/api/campaigns')]);
+    if (pRes.ok) profiles = await pRes.json();
+    if (sRes.ok) seedFiles = await sRes.json();
+    if (cRes.ok) campaigns = await cRes.json();
+  } catch {}
+
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>New Crawl Job</h3>
+      <div class="form-group">
+        <label>Job Name (optional)</label>
+        <input type="text" id="nc-name" placeholder="my-crawl">
+      </div>
+      <div class="form-group">
+        <label>Campaign (optional)</label>
+        <select id="nc-campaign">
+          <option value="">-- No Campaign --</option>
+          ${campaigns.map(c => `<option value="${esc(c.id)}" ${prefillCampaignId === c.id ? 'selected' : ''}>${esc(c.name || c.id)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Profile (required)</label>
+        <select id="nc-profile">
+          ${profiles.map((p, i) => `<option value="${esc(p.name || p.id)}" ${i === 0 ? 'selected' : ''}>${esc(p.name || p.id)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Seed Files</label>
+        <div class="checkbox-group" id="nc-seeds">
+          ${seedFiles.map(s => `<label><input type="checkbox" value="${esc(s.name || s.id)}"> ${esc(s.name || s.id)}</label>`).join('')}
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Inline URLs (one per line)</label>
+        <textarea id="nc-urls" placeholder="https://example.com&#10;http://exampleonion.onion"></textarea>
+      </div>
+      <div class="checkbox-group" style="margin-bottom:12px">
+        <label><input type="checkbox" id="nc-dedup"> Shared Dedup</label>
+        <label><input type="checkbox" id="nc-shared-export"> Shared Export</label>
+      </div>
+      <div class="modal-actions">
+        <button id="nc-cancel">Cancel</button>
+        <button class="primary" id="nc-start">Start Crawl</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#nc-cancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+  overlay.querySelector('#nc-start').onclick = async () => {
+    const profileVal = overlay.querySelector('#nc-profile').value;
+    if (!profileVal) {
+      alert('Please select a profile.');
+      return;
+    }
+    const seeds = Array.from(overlay.querySelectorAll('#nc-seeds input:checked')).map(i => i.value);
+    const urls = overlay.querySelector('#nc-urls').value.split('\n').map(u => u.trim()).filter(Boolean);
+
+    const campaignVal = overlay.querySelector('#nc-campaign').value;
+    const body = {
+      name: overlay.querySelector('#nc-name').value.trim() || undefined,
+      profile: profileVal,
+      seed_files: seeds.length ? seeds : undefined,
+      seed_urls: urls.length ? urls : undefined,
+      shared_dedup: overlay.querySelector('#nc-dedup').checked,
+      shared_export: overlay.querySelector('#nc-shared-export').checked,
+      campaign_id: campaignVal || undefined,
+    };
+
+    try {
+      const res = await api('/api/jobs', { method: 'POST', body: JSON.stringify(body) });
+      if (res.ok) {
+        overlay.remove();
+        handleRoute();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to start crawl.');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+}
+
+// ─── Job Detail ───
+async function renderJobDetail(container, jobId) {
+  try {
+    const res = await api(`/api/jobs/${jobId}`);
+    if (res.ok) {
+      S.jobDetail = await res.json();
+      S.currentJob = jobId;
+    }
+  } catch {}
+
+  const j = S.jobDetail || {};
+  S.speedHistory = [];
+  S.urlFeedPaused = false;
+  S.domainPage = 1;
+
+  container.innerHTML = `
+    <div class="control-bar">
+      <h2>${esc(j.name || j.id || jobId)} ${statusBadge(j.status || 'unknown')}</h2>
+      <button class="success" id="jd-pause" style="display:${j.status === 'running' ? '' : 'none'}">Pause</button>
+      <button class="warning" id="jd-resume" style="display:${j.status === 'paused' ? '' : 'none'}">Resume</button>
+      <button class="danger" id="jd-stop" style="display:${['running','paused'].includes(j.status) ? '' : 'none'}">Stop</button>
+    </div>
+    <div class="stat-cards" id="jd-stats">
+      ${jobDetailStatsHTML(j)}
+    </div>
+    <div class="two-col">
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <strong>Domains</strong>
+          <input type="text" id="domain-search" placeholder="Filter domains..." style="flex:1;max-width:200px">
+        </div>
+        <div class="domain-table-wrap" id="domain-table-wrap"></div>
+        <div class="pagination" id="domain-pagination"></div>
+      </div>
+      <div class="card">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <strong>URL Feed</strong>
+          <button id="feed-pause" style="margin-left:auto;font-size:12px;padding:3px 8px">Pause</button>
+        </div>
+        <div class="url-feed" id="url-feed"></div>
+      </div>
+    </div>
+    <div class="chart-row">
+      <div class="card chart-container">
+        <strong style="display:block;margin-bottom:8px">Speed (URLs/sec)</strong>
+        <canvas id="speed-chart" width="600" height="250"></canvas>
+      </div>
+      <div class="card chart-container">
+        <strong style="display:block;margin-bottom:8px">Success / Errors</strong>
+        <canvas id="donut-chart" width="300" height="250"></canvas>
+      </div>
+    </div>
+  `;
+
+  // Control buttons — update UI immediately on success
+  document.getElementById('jd-pause').onclick = async () => {
+    const res = await api(`/api/jobs/${jobId}/pause`, { method: 'POST' });
+    if (res.ok) {
+      S.jobDetail.status = 'paused';
+      updateJobDetail(S.jobDetail);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || 'Failed to pause.');
+    }
+  };
+  document.getElementById('jd-resume').onclick = async () => {
+    const res = await api(`/api/jobs/${jobId}/resume`, { method: 'POST' });
+    if (res.ok) {
+      S.jobDetail.status = 'running';
+      updateJobDetail(S.jobDetail);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || 'Failed to resume.');
+    }
+  };
+  document.getElementById('jd-stop').onclick = async () => {
+    if (!confirm('Stop this crawl?')) return;
+    const res = await api(`/api/jobs/${jobId}/stop`, { method: 'POST' });
+    if (res.ok) {
+      S.jobDetail.status = 'stopped';
+      updateJobDetail(S.jobDetail);
+    } else {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || 'Failed to stop.');
+    }
+  };
+  document.getElementById('feed-pause').onclick = () => {
+    S.urlFeedPaused = !S.urlFeedPaused;
+    document.getElementById('feed-pause').textContent = S.urlFeedPaused ? 'Resume' : 'Pause';
+  };
+  document.getElementById('domain-search').oninput = () => renderDomainTable(j);
+
+  renderDomainTable(j);
+  renderUrlFeed(j);
+  drawSpeedChart(j);
+  drawDonutChart(j);
+
+  // Subscribe to updates
+  wsSend({ subscribe: jobId });
+}
+
+function jobDetailStatsHTML(j) {
+  const s = j.stats || j;
+  return `
+    <div class="stat-card"><div class="label">URLs Crawled</div><div class="value cyan">${formatNum(s.urls_crawled)}</div></div>
+    <div class="stat-card"><div class="label">In Queue</div><div class="value">${formatNum(s.urls_in_queue)}</div></div>
+    <div class="stat-card"><div class="label">New Links</div><div class="value green">${formatNum(s.new_links_discovered)}</div></div>
+    <div class="stat-card"><div class="label">Errors</div><div class="value red">${formatNum(s.errors)}</div></div>
+    <div class="stat-card"><div class="label">Speed</div><div class="value cyan">${(s.speed || 0).toFixed(1)}/s</div></div>
+    <div class="stat-card"><div class="label">Elapsed</div><div class="value">${formatTime(s.elapsed)}</div></div>
+    <div class="stat-card"><div class="label">Domain Links</div><div class="value">${formatNum(s.domain_links_count)}</div></div>
+  `;
+}
+
+function renderDomainTable(j) {
+  const wrap = document.getElementById('domain-table-wrap');
+  const pag = document.getElementById('domain-pagination');
+  if (!wrap) return;
+  const s = j.stats || j;
+  const domains = s.domains || j.domains || [];
+  const search = (document.getElementById('domain-search')?.value || '').toLowerCase();
+  const filtered = domains.filter(d => (d.domain || '').toLowerCase().includes(search));
+  const perPage = 50;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / perPage));
+  S.domainPage = Math.min(S.domainPage, totalPages);
+  const start = (S.domainPage - 1) * perPage;
+  const page = filtered.slice(start, start + perPage);
+
+  wrap.innerHTML = `<table>
+    <thead><tr><th>Domain</th><th>Count</th><th>Last Seen</th></tr></thead>
+    <tbody>${page.map(d => `<tr>
+      <td>${esc(d.domain)}</td>
+      <td>${formatNum(d.count)}</td>
+      <td>${esc(d.last_seen || '--')}</td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+
+  pag.innerHTML = `
+    <button ${S.domainPage <= 1 ? 'disabled' : ''} id="dom-prev">&laquo; Prev</button>
+    <span>Page ${S.domainPage} / ${totalPages}</span>
+    <button ${S.domainPage >= totalPages ? 'disabled' : ''} id="dom-next">Next &raquo;</button>
+  `;
+  const prev = document.getElementById('dom-prev');
+  const next = document.getElementById('dom-next');
+  if (prev) prev.onclick = () => { S.domainPage--; renderDomainTable(j); };
+  if (next) next.onclick = () => { S.domainPage++; renderDomainTable(j); };
+}
+
+function renderUrlFeed(j) {
+  const feed = document.getElementById('url-feed');
+  if (!feed) return;
+  const s = j.stats || j;
+  const urls = (s.recent_urls || j.recent_urls || []).slice(-100);
+  feed.innerHTML = urls.map(u => `
+    <div class="item">
+      <span class="status">${statusCodeBadge(u.status_code)}</span>
+      <span>${esc(u.url)}</span>
+    </div>
+  `).join('');
+  if (!S.urlFeedPaused) feed.scrollTop = feed.scrollHeight;
+}
+
+function updateJobDetail(data) {
+  if (!data) return;
+  // WS now sends flat fields (urls_crawled, speed, status, domains, etc.)
+  S.jobDetail = { ...S.jobDetail, ...data };
+  const j = S.jobDetail;
+
+  // Update title with status badge
+  const titleEl = document.querySelector('.control-bar h2');
+  if (titleEl && j.status) {
+    titleEl.innerHTML = `${esc(j.name || j.id || '')} ${statusBadge(j.status)}`;
+  }
+
+  // Update stats — jobDetailStatsHTML reads from j directly (flat) or j.stats
+  const statsEl = document.getElementById('jd-stats');
+  if (statsEl) statsEl.innerHTML = jobDetailStatsHTML(j);
+
+  // Update control buttons based on status
+  const pauseBtn = document.getElementById('jd-pause');
+  const resumeBtn = document.getElementById('jd-resume');
+  const stopBtn = document.getElementById('jd-stop');
+  if (pauseBtn) pauseBtn.style.display = j.status === 'running' ? '' : 'none';
+  if (resumeBtn) resumeBtn.style.display = j.status === 'paused' ? '' : 'none';
+  if (stopBtn) stopBtn.style.display = ['running', 'paused'].includes(j.status) ? '' : 'none';
+
+  // Update domains & feed
+  renderDomainTable(j);
+  if (!S.urlFeedPaused) renderUrlFeed(j);
+
+  // Update charts
+  const speed = j.speed != null ? j.speed : (j.stats?.speed || 0);
+  if (speed != null) {
+    S.speedHistory.push({ t: Date.now(), v: speed });
+    const fiveMin = 5 * 60 * 1000;
+    S.speedHistory = S.speedHistory.filter(p => Date.now() - p.t < fiveMin);
+  }
+  drawSpeedChart(j);
+  drawDonutChart(j);
+}
+
+// ─── Canvas Charts ───
+function drawLineChart(canvasId, history, label) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const points = history.length > 1 ? [...history] : [{ t: Date.now(), v: (history.length ? history[0].v : 0) }];
+  if (points.length < 2) {
+    points.unshift({ t: points[0].t - 1000, v: 0 });
+  }
+
+  const maxV = Math.max(1, ...points.map(p => p.v));
+  const minT = points[0].t;
+  const maxT = points[points.length - 1].t;
+  const rangeT = Math.max(maxT - minT, 1);
+  const pad = { top: 10, right: 10, bottom: 30, left: 50 };
+  const cW = W - pad.left - pad.right;
+  const cH = H - pad.top - pad.bottom;
+
+  // Grid
+  ctx.strokeStyle = '#30363d';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.top + (cH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText((maxV * (1 - i / 4)).toFixed(1), pad.left - 6, y + 4);
+  }
+
+  // Line
+  ctx.beginPath();
+  points.forEach((p, i) => {
+    const x = pad.left + ((p.t - minT) / rangeT) * cW;
+    const y = pad.top + cH - (p.v / maxV) * cH;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#58a6ff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  grad.addColorStop(0, 'rgba(88,166,255,0.3)');
+  grad.addColorStop(1, 'rgba(88,166,255,0)');
+  ctx.lineTo(pad.left + cW, pad.top + cH);
+  ctx.lineTo(pad.left, pad.top + cH);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Time labels
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '10px monospace';
+  ctx.textAlign = 'center';
+  for (let i = 0; i <= 4; i++) {
+    const t = minT + (rangeT / 4) * i;
+    const d = new Date(t);
+    const x = pad.left + (cW / 4) * i;
+    ctx.fillText(d.toLocaleTimeString(), x, H - 6);
+  }
+}
+
+function drawSpeedChart(j) {
+  const s = j.stats || j;
+  const speed = s.speed || j.speed || 0;
+  const points = S.speedHistory.length > 0 ? S.speedHistory : [{ t: Date.now(), v: speed }];
+  drawLineChart('speed-chart', points, 'URLs/sec');
+}
+
+function drawDonutChart(j) {
+  const canvas = document.getElementById('donut-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const s = j.stats || j;
+  const crawled = s.urls_crawled || j.urls_crawled || 0;
+  const errs = s.errors || j.errors || 0;
+  const success = crawled - errs;
+  const errors = errs;
+  const total = success + errors;
+  if (total === 0) {
+    ctx.fillStyle = '#8b949e';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data', W / 2, H / 2);
+    return;
+  }
+
+  const cx = W / 2, cy = H / 2;
+  const R = Math.min(cx, cy) - 20;
+  const r = R * 0.55;
+  const slices = [
+    { val: success, color: '#3fb950' },
+    { val: errors, color: '#f85149' },
+  ];
+
+  let angle = -Math.PI / 2;
+  slices.forEach(s => {
+    const sweep = (s.val / total) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, angle, angle + sweep);
+    ctx.arc(cx, cy, r, angle + sweep, angle, true);
+    ctx.closePath();
+    ctx.fillStyle = s.color;
+    ctx.fill();
+    angle += sweep;
+  });
+
+  // Center text
+  ctx.fillStyle = '#f0f6fc';
+  ctx.font = 'bold 22px monospace';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(formatNum(total), cx, cy - 8);
+  ctx.fillStyle = '#8b949e';
+  ctx.font = '11px sans-serif';
+  ctx.fillText('total', cx, cy + 12);
+
+  // Legend
+  ctx.textAlign = 'left';
+  ctx.font = '12px sans-serif';
+  ctx.fillStyle = '#3fb950';
+  ctx.fillRect(W - 110, 14, 10, 10);
+  ctx.fillStyle = '#c9d1d9';
+  ctx.fillText(`Success: ${formatNum(success)}`, W - 95, 23);
+  ctx.fillStyle = '#f85149';
+  ctx.fillRect(W - 110, 30, 10, 10);
+  ctx.fillStyle = '#c9d1d9';
+  ctx.fillText(`Errors: ${formatNum(errors)}`, W - 95, 39);
+}
+
+// ─── Results Page ───
+async function renderResults(container) {
+  S.graphMode = false;
+  let jobs = [];
+  let campaigns = [];
+  try {
+    const [jRes, cRes] = await Promise.all([api('/api/jobs'), api('/api/campaigns')]);
+    if (jRes.ok) jobs = await jRes.json();
+    if (cRes.ok) campaigns = await cRes.json();
+  } catch {}
+
+  const selectedJob = S.resultsMeta.selectedJob || (jobs.length ? jobs[0].id : '');
+  S.resultsMeta.selectedJob = selectedJob;
+  const selectedCampaignFilter = S.resultsMeta.campaignFilter || '';
+
+  const filteredJobs = selectedCampaignFilter
+    ? jobs.filter(j => j.campaign_id === selectedCampaignFilter)
+    : jobs;
+
+  container.innerHTML = `
+    <div class="control-bar">
+      <h2>Results</h2>
+      <select id="res-campaign-filter" style="max-width:180px">
+        <option value="">All Campaigns</option>
+        ${campaigns.map(c => `<option value="${esc(c.id)}" ${c.id === selectedCampaignFilter ? 'selected' : ''}>${esc(c.name || c.id)}</option>`).join('')}
+      </select>
+      <select id="res-job-select" style="max-width:200px">
+        <option value="merged">Merged</option>
+        <option value="merged_dedup" ${selectedJob === 'merged_dedup' ? 'selected' : ''}>Merged (Deduped)</option>
+        ${filteredJobs.map(j => `<option value="${esc(j.id)}" ${j.id === selectedJob ? 'selected' : ''}>${esc(j.name || j.id)}</option>`).join('')}
+      </select>
+      <button id="res-graph-btn">Graph View</button>
+      <div class="export-dropdown" id="export-dd">
+        <button id="export-btn">Export &#9662;</button>
+        <div class="dropdown-menu">
+          <button data-fmt="json">JSON</button>
+          <button data-fmt="jsonl">JSONL</button>
+          <button data-fmt="csv">CSV</button>
+        </div>
+      </div>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="res-search" placeholder="Search URL/title..." style="flex:1">
+      <input type="text" id="res-domain" placeholder="Domain filter...">
+      <select id="res-status"><option value="">All statuses</option><option value="200">200</option><option value="301">301</option><option value="403">403</option><option value="404">404</option><option value="500">500</option></select>
+      <input type="number" id="res-depth-min" placeholder="Depth min" style="width:90px">
+      <input type="number" id="res-depth-max" placeholder="Depth max" style="width:90px">
+      <button id="res-filter-btn" class="primary">Filter</button>
+    </div>
+    <div id="results-area">
+      <div class="results-table-wrap"><table id="results-table"><thead><tr>
+        <th data-col="url">URL</th><th data-col="title">Title</th><th data-col="domain">Domain</th>
+        <th data-col="status_code">Status</th><th data-col="depth">Depth</th><th data-col="timestamp">Time</th>
+      </tr></thead><tbody id="results-tbody"></tbody></table></div>
+      <div class="pagination" id="results-pagination"></div>
+    </div>
+    <div id="graph-area" style="display:none;width:100%;height:600px;position:relative">
+      <div id="graph-container"><canvas id="graph-canvas"></canvas><div id="graph-tooltip"></div></div>
+    </div>
+  `;
+
+  // Event handlers
+  document.getElementById('res-campaign-filter').onchange = (e) => {
+    S.resultsMeta.campaignFilter = e.target.value;
+    S.resultsMeta.page = 1;
+    // Re-render to update job list filtered by campaign
+    renderResults(container);
+  };
+  document.getElementById('res-job-select').onchange = (e) => {
+    S.resultsMeta.selectedJob = e.target.value;
+    S.resultsMeta.page = 1;
+    loadResults();
+  };
+  document.getElementById('res-filter-btn').onclick = () => { S.resultsMeta.page = 1; loadResults(); };
+  document.getElementById('res-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { S.resultsMeta.page = 1; loadResults(); } });
+
+  document.getElementById('res-graph-btn').onclick = () => {
+    S.graphMode = !S.graphMode;
+    document.getElementById('results-area').style.display = S.graphMode ? 'none' : '';
+    document.getElementById('graph-area').style.display = S.graphMode ? '' : 'none';
+    if (S.graphMode) loadGraph();
+  };
+
+  // Export
+  const dd = document.getElementById('export-dd');
+  document.getElementById('export-btn').onclick = () => dd.classList.toggle('open');
+  dd.querySelectorAll('.dropdown-menu button').forEach(btn => {
+    btn.onclick = () => {
+      const fmt = btn.dataset.fmt;
+      const jid = S.resultsMeta.selectedJob || 'merged';
+      window.open(`/api/results/${jid}/export?format=${fmt}`, '_blank');
+      dd.classList.remove('open');
+    };
+  });
+  document.addEventListener('click', (e) => { if (!dd.contains(e.target)) dd.classList.remove('open'); });
+
+  // Sort
+  document.querySelectorAll('#results-table th').forEach(th => {
+    th.onclick = () => {
+      const col = th.dataset.col;
+      if (S.resultsMeta.sort === col) {
+        S.resultsMeta.sortDir = S.resultsMeta.sortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        S.resultsMeta.sort = col;
+        S.resultsMeta.sortDir = 'asc';
+      }
+      renderResultsTable();
+    };
+  });
+
+  await loadResults();
+}
+
+async function loadResults() {
+  const jid = S.resultsMeta.selectedJob || 'merged';
+  const params = new URLSearchParams();
+  params.set('page', S.resultsMeta.page);
+  params.set('per_page', 50);
+  const search = document.getElementById('res-search')?.value;
+  const domain = document.getElementById('res-domain')?.value;
+  const status = document.getElementById('res-status')?.value;
+  const depthMin = document.getElementById('res-depth-min')?.value;
+  const depthMax = document.getElementById('res-depth-max')?.value;
+  if (search) params.set('search', search);
+  if (domain) params.set('domain', domain);
+  if (status) params.set('status', status);
+  if (depthMin) params.set('depth_min', depthMin);
+  if (depthMax) params.set('depth_max', depthMax);
+
+  let url;
+  if (jid === 'merged_dedup') {
+    url = `/api/analytics/merged?${params}`;
+  } else {
+    url = `/api/results/${jid}?${params}`;
+  }
+
+  try {
+    const res = await api(url);
+    if (res.ok) {
+      const data = await res.json();
+      S.results = data.items || data.results || [];
+      S.resultsMeta.total = data.total || S.results.length;
+    }
+  } catch {}
+  renderResultsTable();
+}
+
+function renderResultsTable() {
+  const tbody = document.getElementById('results-tbody');
+  const pag = document.getElementById('results-pagination');
+  if (!tbody) return;
+
+  let rows = [...S.results];
+  // Client-side sort on current page
+  const col = S.resultsMeta.sort;
+  const dir = S.resultsMeta.sortDir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    let va = a[col], vb = b[col];
+    if (va == null) va = '';
+    if (vb == null) vb = '';
+    if (typeof va === 'number') return (va - vb) * dir;
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+
+  tbody.innerHTML = rows.map((r, i) => {
+    let domain = '';
+    try { domain = new URL(r.url).hostname; } catch {}
+    const ts = r.timestamp ? new Date(r.timestamp * 1000).toLocaleTimeString() : '--';
+    return `
+    <tr data-idx="${i}" style="cursor:pointer">
+      <td class="truncate" title="${esc(r.url)}">${esc(truncate(r.url, 60))}</td>
+      <td class="truncate">${esc(truncate(r.title || '', 40))}</td>
+      <td>${esc(domain)}</td>
+      <td>${statusCodeBadge(r.status_code)}</td>
+      <td>${r.depth != null ? r.depth : '--'}</td>
+      <td>${ts}</td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('tr').forEach(tr => {
+    tr.onclick = () => showResultDetail(rows[parseInt(tr.dataset.idx)]);
+  });
+
+  const totalPages = Math.max(1, Math.ceil(S.resultsMeta.total / 50));
+  pag.innerHTML = `
+    <button ${S.resultsMeta.page <= 1 ? 'disabled' : ''} id="res-prev">&laquo; Prev</button>
+    <span>Page ${S.resultsMeta.page} / ${totalPages} (${formatNum(S.resultsMeta.total)} results)</span>
+    <button ${S.resultsMeta.page >= totalPages ? 'disabled' : ''} id="res-next">Next &raquo;</button>
+  `;
+  const prev = document.getElementById('res-prev');
+  const next = document.getElementById('res-next');
+  if (prev) prev.onclick = () => { S.resultsMeta.page--; loadResults(); };
+  if (next) next.onclick = () => { S.resultsMeta.page++; loadResults(); };
+}
+
+function showResultDetail(r) {
+  const panel = document.getElementById('result-panel');
+  const body = document.getElementById('panel-body');
+  const jid = S.resultsMeta.selectedJob || 'merged';
+
+  body.innerHTML = `
+    <div class="detail-row"><span class="dl">URL</span><div class="dv">${esc(r.url)}</div></div>
+    <div class="detail-row"><span class="dl">Title</span><div class="dv">${esc(r.title || '--')}</div></div>
+    <div class="detail-row"><span class="dl">Description</span><div class="dv">${esc(r.description || '--')}</div></div>
+    <div class="detail-row"><span class="dl">Status Code</span><div class="dv">${statusCodeBadge(r.status_code)}</div></div>
+    <div class="detail-row"><span class="dl">Content Length</span><div class="dv">${formatNum(r.content_length || 0)} bytes</div></div>
+    <div class="detail-row"><span class="dl">Depth</span><div class="dv">${r.depth != null ? r.depth : '--'}</div></div>
+    <div class="detail-row"><span class="dl">Timestamp</span><div class="dv">${esc(r.timestamp || '--')}</div></div>
+    <div class="detail-row"><span class="dl">Discovered Links</span>
+      <div class="dv" style="max-height:150px;overflow-y:auto;font-size:12px">
+        ${(r.links || []).map(l => `<div>${esc(l)}</div>`).join('') || '(none)'}
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px">
+      <button class="primary" id="panel-preview">Preview</button>
+    </div>
+    <div id="panel-preview-area"></div>
+  `;
+
+  panel.classList.add('open');
+
+  document.getElementById('panel-preview').onclick = async () => {
+    try {
+      const res = await api(`/api/results/${jid}/preview?url=${encodeURIComponent(r.url)}`);
+      if (res.ok) {
+        const data = await res.json();
+        document.getElementById('panel-preview-area').innerHTML =
+          `<iframe sandbox="" srcdoc="${esc(data.html || '')}" style="width:100%;height:300px;border:1px solid var(--border);border-radius:6px;background:#fff;margin-top:8px"></iframe>`;
+      }
+    } catch {}
+  };
+}
+
+// Close panel
+document.getElementById('panel-close').onclick = () => {
+  document.getElementById('result-panel').classList.remove('open');
+};
+
+// ─── WebGL Force-Directed Graph ───
+let graphState = null;
+
+async function loadGraph() {
+  const jid = S.resultsMeta.selectedJob || 'merged';
+  let graphData = { nodes: [], edges: [] };
+  try {
+    const res = await api(`/api/results/${jid}/graph`);
+    if (res.ok) graphData = await res.json();
+  } catch {}
+  initGraph(graphData);
+}
+
+function initGraph(data) {
+  const canvasEl = document.getElementById('graph-canvas');
+  const container = document.getElementById('graph-container');
+  const tooltip = document.getElementById('graph-tooltip');
+  if (!canvasEl || !container) return;
+
+  const rect = container.getBoundingClientRect();
+  canvasEl.width = rect.width || 800;
+  canvasEl.height = rect.height || 600;
+
+  const gl = canvasEl.getContext('webgl2');
+  if (!gl) {
+    container.innerHTML = '<p style="padding:20px;color:var(--red)">WebGL2 not available.</p>';
+    return;
+  }
+
+  const nodes = (data.nodes || []).map((n, i) => ({
+    ...n,
+    x: (Math.random() - 0.5) * 400,
+    y: (Math.random() - 0.5) * 400,
+    vx: 0, vy: 0,
+    idx: i,
+    size: Math.max(4, Math.min(30, (n.count || 1) * 2)),
+    color: (n.type === 'onion' || n.scope === 'dw') ? [0.969, 0.471, 0.733] : [0.345, 0.651, 1.0],
+  }));
+
+  const nodeMap = {};
+  nodes.forEach((n, i) => { nodeMap[n.id || n.url || i] = i; });
+
+  const edges = (data.edges || []).filter(e => {
+    const si = nodeMap[e.source];
+    const ti = nodeMap[e.target];
+    return si !== undefined && ti !== undefined;
+  }).map(e => ({
+    source: nodeMap[e.source],
+    target: nodeMap[e.target],
+    weight: e.weight || 1,
+  }));
+
+  // State
+  const gs = {
+    nodes, edges, gl, canvasEl, tooltip,
+    panX: 0, panY: 0, zoom: 1,
+    dragging: false, dragStart: null,
+    selectedNode: -1,
+    hoverNode: -1,
+    animFrame: null,
+    running: true,
+  };
+  graphState = gs;
+
+  // Shaders
+  const vsPoint = `#version 300 es
+    in vec2 a_pos;
+    in float a_size;
+    in vec3 a_color;
+    uniform vec2 u_pan;
+    uniform float u_zoom;
+    uniform vec2 u_res;
+    out vec3 v_color;
+    void main() {
+      vec2 p = (a_pos + u_pan) * u_zoom;
+      gl_Position = vec4(p / u_res * 2.0, 0.0, 1.0);
+      gl_PointSize = a_size * u_zoom;
+      v_color = a_color;
+    }`;
+  const fsPoint = `#version 300 es
+    precision mediump float;
+    in vec3 v_color;
+    out vec4 fragColor;
+    void main() {
+      vec2 c = gl_PointCoord - 0.5;
+      if (dot(c,c) > 0.25) discard;
+      fragColor = vec4(v_color, 1.0);
+    }`;
+  const vsLine = `#version 300 es
+    in vec2 a_pos;
+    in float a_alpha;
+    uniform vec2 u_pan;
+    uniform float u_zoom;
+    uniform vec2 u_res;
+    out float v_alpha;
+    void main() {
+      vec2 p = (a_pos + u_pan) * u_zoom;
+      gl_Position = vec4(p / u_res * 2.0, 0.0, 1.0);
+      v_alpha = a_alpha;
+    }`;
+  const fsLine = `#version 300 es
+    precision mediump float;
+    in float v_alpha;
+    out vec4 fragColor;
+    void main() {
+      fragColor = vec4(0.48, 0.53, 0.59, v_alpha);
+    }`;
+
+  function compileShader(src, type) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    return s;
+  }
+  function linkProgram(vs, fs) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compileShader(vs, gl.VERTEX_SHADER));
+    gl.attachShader(p, compileShader(fs, gl.FRAGMENT_SHADER));
+    gl.linkProgram(p);
+    return p;
+  }
+
+  const progPoint = linkProgram(vsPoint, fsPoint);
+  const progLine = linkProgram(vsLine, fsLine);
+
+  // Buffers
+  const pointBuf = gl.createBuffer();
+  const lineBuf = gl.createBuffer();
+
+  // Mouse events
+  canvasEl.onmousedown = (e) => {
+    gs.dragging = true;
+    gs.dragStart = { x: e.clientX - gs.panX * gs.zoom, y: e.clientY + gs.panY * gs.zoom };
+  };
+  canvasEl.onmousemove = (e) => {
+    if (gs.dragging && gs.dragStart) {
+      gs.panX = (e.clientX - gs.dragStart.x) / gs.zoom;
+      gs.panY = -(e.clientY - gs.dragStart.y) / gs.zoom;  // Invert for GL
+      // Actually let's use simpler pan
+    }
+    // Hover detection
+    const cr = canvasEl.getBoundingClientRect();
+    const mx = (e.clientX - cr.left - cr.width / 2) / gs.zoom - gs.panX;
+    const my = -(e.clientY - cr.top - cr.height / 2) / gs.zoom - gs.panY;
+    let closest = -1, closestDist = Infinity;
+    nodes.forEach((n, i) => {
+      const d = Math.hypot(n.x - mx, n.y - my);
+      if (d < n.size / gs.zoom + 5 && d < closestDist) {
+        closest = i; closestDist = d;
+      }
+    });
+    gs.hoverNode = closest;
+    if (closest >= 0) {
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX - cr.left + 12) + 'px';
+      tooltip.style.top = (e.clientY - cr.top - 8) + 'px';
+      tooltip.textContent = nodes[closest].url || nodes[closest].id || `Node ${closest}`;
+    } else {
+      tooltip.style.display = 'none';
+    }
+  };
+  canvasEl.onmouseup = () => { gs.dragging = false; };
+  canvasEl.onclick = (e) => {
+    if (gs.hoverNode >= 0) {
+      gs.selectedNode = gs.selectedNode === gs.hoverNode ? -1 : gs.hoverNode;
+    }
+  };
+  canvasEl.onwheel = (e) => {
+    e.preventDefault();
+    gs.zoom *= e.deltaY < 0 ? 1.1 : 0.9;
+    gs.zoom = Math.max(0.1, Math.min(10, gs.zoom));
+  };
+
+  // Force simulation
+  function simulate() {
+    const k = Math.sqrt((800 * 600) / Math.max(nodes.length, 1));
+    const temp = 2;
+
+    // Repulsion
+    for (let i = 0; i < nodes.length; i++) {
+      nodes[i].vx = 0; nodes[i].vy = 0;
+      for (let j = i + 1; j < nodes.length; j++) {
+        let dx = nodes[i].x - nodes[j].x;
+        let dy = nodes[i].y - nodes[j].y;
+        let d = Math.max(Math.hypot(dx, dy), 0.1);
+        let f = (k * k) / d;
+        let fx = (dx / d) * f;
+        let fy = (dy / d) * f;
+        nodes[i].vx += fx; nodes[i].vy += fy;
+        nodes[j].vx -= fx; nodes[j].vy -= fy;
+      }
+    }
+
+    // Attraction (edges)
+    edges.forEach(e => {
+      const a = nodes[e.source], b = nodes[e.target];
+      let dx = b.x - a.x, dy = b.y - a.y;
+      let d = Math.max(Math.hypot(dx, dy), 0.1);
+      let f = (d * d) / k;
+      let fx = (dx / d) * f;
+      let fy = (dy / d) * f;
+      a.vx += fx * 0.05; a.vy += fy * 0.05;
+      b.vx -= fx * 0.05; b.vy -= fy * 0.05;
+    });
+
+    // Center gravity
+    nodes.forEach(n => {
+      n.vx -= n.x * 0.01;
+      n.vy -= n.y * 0.01;
+    });
+
+    // Apply
+    nodes.forEach(n => {
+      let d = Math.hypot(n.vx, n.vy);
+      if (d > 0) {
+        let capped = Math.min(d, temp);
+        n.x += (n.vx / d) * capped;
+        n.y += (n.vy / d) * capped;
+      }
+    });
+  }
+
+  function render() {
+    if (!gs.running) return;
+    simulate();
+
+    const W = canvasEl.width, H = canvasEl.height;
+    gl.viewport(0, 0, W, H);
+    gl.clearColor(0.051, 0.067, 0.09, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    const resX = W / 2, resY = H / 2;
+
+    // Draw edges
+    if (edges.length > 0) {
+      const lineData = [];
+      edges.forEach(e => {
+        const a = nodes[e.source], b = nodes[e.target];
+        let alpha = 0.1 + Math.min(e.weight, 1) * 0.5;
+        if (gs.selectedNode >= 0 && e.source !== gs.selectedNode && e.target !== gs.selectedNode) {
+          alpha *= 0.15;
+        }
+        lineData.push(a.x, a.y, alpha, b.x, b.y, alpha);
+      });
+      const ld = new Float32Array(lineData);
+      gl.useProgram(progLine);
+      gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, ld, gl.DYNAMIC_DRAW);
+      const aPos = gl.getAttribLocation(progLine, 'a_pos');
+      const aAlpha = gl.getAttribLocation(progLine, 'a_alpha');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 12, 0);
+      gl.enableVertexAttribArray(aAlpha);
+      gl.vertexAttribPointer(aAlpha, 1, gl.FLOAT, false, 12, 8);
+      gl.uniform2f(gl.getUniformLocation(progLine, 'u_pan'), gs.panX, gs.panY);
+      gl.uniform1f(gl.getUniformLocation(progLine, 'u_zoom'), gs.zoom);
+      gl.uniform2f(gl.getUniformLocation(progLine, 'u_res'), resX, resY);
+      gl.drawArrays(gl.LINES, 0, edges.length * 2);
+    }
+
+    // Draw nodes
+    if (nodes.length > 0) {
+      const pointData = [];
+      nodes.forEach((n, i) => {
+        let r = n.color[0], g = n.color[1], b = n.color[2];
+        if (gs.selectedNode >= 0 && i !== gs.selectedNode) {
+          // Check if connected
+          const connected = edges.some(e => (e.source === gs.selectedNode && e.target === i) || (e.target === gs.selectedNode && e.source === i));
+          if (!connected) { r *= 0.3; g *= 0.3; b *= 0.3; }
+        }
+        pointData.push(n.x, n.y, n.size, r, g, b);
+      });
+      const pd = new Float32Array(pointData);
+      gl.useProgram(progPoint);
+      gl.bindBuffer(gl.ARRAY_BUFFER, pointBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, pd, gl.DYNAMIC_DRAW);
+      const aPos = gl.getAttribLocation(progPoint, 'a_pos');
+      const aSize = gl.getAttribLocation(progPoint, 'a_size');
+      const aColor = gl.getAttribLocation(progPoint, 'a_color');
+      gl.enableVertexAttribArray(aPos);
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 24, 0);
+      gl.enableVertexAttribArray(aSize);
+      gl.vertexAttribPointer(aSize, 1, gl.FLOAT, false, 24, 8);
+      gl.enableVertexAttribArray(aColor);
+      gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 24, 12);
+      gl.uniform2f(gl.getUniformLocation(progPoint, 'u_pan'), gs.panX, gs.panY);
+      gl.uniform1f(gl.getUniformLocation(progPoint, 'u_zoom'), gs.zoom);
+      gl.uniform2f(gl.getUniformLocation(progPoint, 'u_res'), resX, resY);
+      gl.drawArrays(gl.POINTS, 0, nodes.length);
+    }
+
+    gs.animFrame = requestAnimationFrame(render);
+  }
+
+  render();
+
+  // Cleanup when leaving
+  const origHandleRoute = handleRoute;
+  const cleanup = () => {
+    gs.running = false;
+    if (gs.animFrame) cancelAnimationFrame(gs.animFrame);
+  };
+  window.addEventListener('hashchange', cleanup, { once: true });
+}
+
+// ─── Campaigns Page ───
+async function renderCampaigns(container) {
+  try {
+    const res = await api('/api/campaigns');
+    if (res.ok) S.campaigns = await res.json();
+  } catch {}
+
+  container.innerHTML = `
+    <div class="control-bar">
+      <h2>Campaigns</h2>
+      <button class="primary" id="btn-create-campaign">+ Create Campaign</button>
+    </div>
+    <div class="campaign-cards" id="campaign-cards-grid">
+      ${S.campaigns.map(c => `
+        <div class="campaign-card" data-id="${esc(c.id)}">
+          <div class="top">
+            <span class="name">&#128193; ${esc(c.name || c.id)}</span>
+            <span>${statusBadge(c.status || 'active')}</span>
+          </div>
+          <div class="desc">${esc(c.description || '')}</div>
+          <div class="meta">
+            <span>Jobs: ${formatNum(c.job_count || 0)}</span>
+            <span>URLs: ${formatNum(c.total_urls || 0)}</span>
+            <span>Domains: ${formatNum(c.unique_domains || 0)}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:6px">${c.created_at ? new Date(c.created_at).toLocaleString() : '--'}</div>
+        </div>
+      `).join('') || '<p style="color:var(--text-muted)">No campaigns yet. Create one to get started.</p>'}
+    </div>
+  `;
+
+  document.getElementById('btn-create-campaign').onclick = () => openCreateCampaignModal(container);
+  container.querySelectorAll('.campaign-card').forEach(card => {
+    card.onclick = () => navigateTo('#/campaigns/' + card.dataset.id);
+  });
+}
+
+function openCreateCampaignModal(parentContainer) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `
+    <div class="modal">
+      <h3>Create Campaign</h3>
+      <div class="form-group">
+        <label>Name (required)</label>
+        <input type="text" id="cc-name" placeholder="Campaign name">
+      </div>
+      <div class="form-group">
+        <label>Description (optional)</label>
+        <textarea id="cc-desc" placeholder="Describe this campaign..."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button id="cc-cancel">Cancel</button>
+        <button class="primary" id="cc-create">Create</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#cc-cancel').onclick = () => overlay.remove();
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  overlay.querySelector('#cc-create').onclick = async () => {
+    const name = overlay.querySelector('#cc-name').value.trim();
+    if (!name) { alert('Please enter a campaign name.'); return; }
+    try {
+      const res = await api('/api/campaigns', {
+        method: 'POST',
+        body: JSON.stringify({ name, description: overlay.querySelector('#cc-desc').value.trim() }),
+      });
+      if (res.ok) {
+        overlay.remove();
+        renderCampaigns(parentContainer);
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to create campaign.');
+      }
+    } catch (err) { alert('Error: ' + err.message); }
+  };
+}
+
+// ─── Campaign Detail Page ───
+async function renderCampaignDetail(container, campaignId) {
+  let campaign = null;
+  try {
+    const res = await api(`/api/campaigns/${campaignId}`);
+    if (res.ok) campaign = await res.json();
+  } catch {}
+  if (!campaign) {
+    container.innerHTML = '<p style="color:var(--red)">Campaign not found.</p>';
+    return;
+  }
+  S.selectedCampaign = campaign;
+
+  const jobs = campaign.jobs || [];
+  const totalUrls = jobs.reduce((a, j) => a + (j.total_urls || j.stats?.urls_crawled || 0), 0);
+  const uniqueDomains = campaign.unique_domains || 0;
+  const totalErrors = jobs.reduce((a, j) => a + (j.total_errors || j.stats?.errors || 0), 0);
+
+  container.innerHTML = `
+    <div class="control-bar">
+      <h2>&#128193; ${esc(campaign.name || campaign.id)} ${statusBadge(campaign.status || 'active')}</h2>
+      <button class="primary" id="cd-new-job">+ Start New Job</button>
+      <button class="danger" id="cd-delete">Delete Campaign</button>
+    </div>
+    <div style="margin-bottom:16px">
+      <span style="color:var(--text-muted);font-size:13px">${esc(campaign.description || 'No description')}</span>
+    </div>
+    <div class="stat-cards">
+      <div class="stat-card"><div class="label">Total Jobs</div><div class="value cyan">${jobs.length}</div></div>
+      <div class="stat-card"><div class="label">Total URLs</div><div class="value green">${formatNum(totalUrls)}</div></div>
+      <div class="stat-card"><div class="label">Unique Domains</div><div class="value yellow">${formatNum(uniqueDomains)}</div></div>
+      <div class="stat-card"><div class="label">Total Errors</div><div class="value red">${formatNum(totalErrors)}</div></div>
+    </div>
+    <h3 style="margin:20px 0 12px;color:var(--text-bright)">Jobs</h3>
+    <div class="results-table-wrap">
+      <table><thead><tr><th>Name</th><th>Status</th><th>URLs</th><th>Errors</th><th>Created</th></tr></thead>
+      <tbody id="cd-jobs-tbody">
+        ${jobs.map(j => `
+          <tr data-id="${esc(j.id)}" style="cursor:pointer">
+            <td>${esc(j.name || j.id)}</td>
+            <td>${statusBadge(j.status || 'unknown')}</td>
+            <td>${formatNum(j.total_urls || j.stats?.urls_crawled || 0)}</td>
+            <td>${formatNum(j.total_errors || j.stats?.errors || 0)}</td>
+            <td>${j.created_at ? new Date(j.created_at).toLocaleString() : '--'}</td>
+          </tr>
+        `).join('') || '<tr><td colspan="5" style="color:var(--text-muted)">No jobs yet</td></tr>'}
+      </tbody></table>
+    </div>
+    <div class="tab-bar" id="cd-tabs" style="margin-top:20px">
+      <div class="tab active" data-tab="results">Results</div>
+      <div class="tab" data-tab="merged">Merged</div>
+      <div class="tab" data-tab="domains">Domains</div>
+    </div>
+    <div id="cd-tab-content"></div>
+  `;
+
+  // Job row click
+  container.querySelectorAll('#cd-jobs-tbody tr[data-id]').forEach(tr => {
+    tr.onclick = () => navigateTo('#/jobs/' + tr.dataset.id);
+  });
+
+  // Delete
+  document.getElementById('cd-delete').onclick = async () => {
+    if (!confirm('Delete this campaign and all its data?')) return;
+    try {
+      await api(`/api/campaigns/${campaignId}`, { method: 'DELETE' });
+      navigateTo('#/campaigns');
+    } catch {}
+  };
+
+  // Start new job pre-filled
+  document.getElementById('cd-new-job').onclick = () => openNewCrawlModal(campaignId);
+
+  // Tabs
+  let cdPage = 1;
+  let cdTab = 'results';
+  const tabContent = document.getElementById('cd-tab-content');
+
+  async function loadCdTab() {
+    if (cdTab === 'results') {
+      const params = new URLSearchParams({ page: cdPage, per_page: 50 });
+      try {
+        const res = await api(`/api/campaigns/${campaignId}/results?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || data.results || [];
+          const total = data.total || items.length;
+          const totalPages = Math.max(1, Math.ceil(total / 50));
+          tabContent.innerHTML = `
+            <div class="results-table-wrap"><table><thead><tr><th>URL</th><th>Title</th><th>Domain</th><th>Status</th><th>Time</th></tr></thead>
+            <tbody>${items.map(r => {
+              let domain = ''; try { domain = new URL(r.url).hostname; } catch {}
+              const ts = r.timestamp ? new Date(r.timestamp * 1000).toLocaleString() : '--';
+              return `<tr><td class="truncate" title="${esc(r.url)}">${esc(truncate(r.url, 60))}</td><td class="truncate">${esc(truncate(r.title||'',40))}</td><td>${esc(domain)}</td><td>${statusCodeBadge(r.status_code)}</td><td>${ts}</td></tr>`;
+            }).join('') || '<tr><td colspan="5" style="color:var(--text-muted)">No results</td></tr>'}</tbody></table></div>
+            <div class="pagination">
+              <button ${cdPage<=1?'disabled':''} id="cd-prev">&laquo; Prev</button>
+              <span>Page ${cdPage} / ${totalPages} (${formatNum(total)})</span>
+              <button ${cdPage>=totalPages?'disabled':''} id="cd-next">Next &raquo;</button>
+            </div>`;
+          if (document.getElementById('cd-prev')) document.getElementById('cd-prev').onclick = () => { cdPage--; loadCdTab(); };
+          if (document.getElementById('cd-next')) document.getElementById('cd-next').onclick = () => { cdPage++; loadCdTab(); };
+        }
+      } catch {}
+    } else if (cdTab === 'merged') {
+      const params = new URLSearchParams({ page: cdPage, per_page: 50 });
+      try {
+        const res = await api(`/api/campaigns/${campaignId}/merged?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || data.results || [];
+          const total = data.total || items.length;
+          const totalPages = Math.max(1, Math.ceil(total / 50));
+          tabContent.innerHTML = `
+            <div style="margin-bottom:8px"><button class="primary" id="cd-export-merged">Export Merged</button></div>
+            <div class="results-table-wrap"><table><thead><tr><th>URL</th><th>Title</th><th>Domain</th><th>Status</th><th>Time</th></tr></thead>
+            <tbody>${items.map(r => {
+              let domain = ''; try { domain = new URL(r.url).hostname; } catch {}
+              const ts = r.timestamp ? new Date(r.timestamp * 1000).toLocaleString() : '--';
+              return `<tr><td class="truncate" title="${esc(r.url)}">${esc(truncate(r.url, 60))}</td><td class="truncate">${esc(truncate(r.title||'',40))}</td><td>${esc(domain)}</td><td>${statusCodeBadge(r.status_code)}</td><td>${ts}</td></tr>`;
+            }).join('') || '<tr><td colspan="5" style="color:var(--text-muted)">No merged results</td></tr>'}</tbody></table></div>
+            <div class="pagination">
+              <button ${cdPage<=1?'disabled':''} id="cd-prev">&laquo; Prev</button>
+              <span>Page ${cdPage} / ${totalPages} (${formatNum(total)})</span>
+              <button ${cdPage>=totalPages?'disabled':''} id="cd-next">Next &raquo;</button>
+            </div>`;
+          if (document.getElementById('cd-export-merged')) document.getElementById('cd-export-merged').onclick = () => {
+            window.open(`/api/campaigns/${campaignId}/merged?per_page=99999&format=csv`, '_blank');
+          };
+          if (document.getElementById('cd-prev')) document.getElementById('cd-prev').onclick = () => { cdPage--; loadCdTab(); };
+          if (document.getElementById('cd-next')) document.getElementById('cd-next').onclick = () => { cdPage++; loadCdTab(); };
+        }
+      } catch {}
+    } else if (cdTab === 'domains') {
+      const searchVal = document.getElementById('cd-domain-search')?.value || '';
+      const params = new URLSearchParams({ page: cdPage, per_page: 50, search: searchVal });
+      try {
+        const res = await api(`/api/campaigns/${campaignId}/domains?${params}`);
+        if (res.ok) {
+          const data = await res.json();
+          const items = data.items || data.domains || [];
+          const total = data.total || items.length;
+          const totalPages = Math.max(1, Math.ceil(total / 50));
+          tabContent.innerHTML = `
+            <div style="margin-bottom:8px"><input type="text" id="cd-domain-search" placeholder="Search domains..." value="${esc(searchVal)}" style="max-width:250px"></div>
+            <div class="results-table-wrap"><table><thead><tr><th>Domain</th><th>Total URLs</th><th>Seen in Jobs</th><th>First Seen</th><th>Last Seen</th></tr></thead>
+            <tbody>${items.map(d => `<tr>
+              <td>${esc(d.domain)}</td>
+              <td>${formatNum(d.total_urls || d.count || 0)}</td>
+              <td>${formatNum(d.seen_in_jobs || 0)}</td>
+              <td>${d.first_seen ? new Date(d.first_seen).toLocaleString() : '--'}</td>
+              <td>${d.last_seen ? new Date(d.last_seen).toLocaleString() : '--'}</td>
+            </tr>`).join('') || '<tr><td colspan="5" style="color:var(--text-muted)">No domains</td></tr>'}</tbody></table></div>
+            <div class="pagination">
+              <button ${cdPage<=1?'disabled':''} id="cd-prev">&laquo; Prev</button>
+              <span>Page ${cdPage} / ${totalPages} (${formatNum(total)})</span>
+              <button ${cdPage>=totalPages?'disabled':''} id="cd-next">Next &raquo;</button>
+            </div>`;
+          if (document.getElementById('cd-domain-search')) {
+            document.getElementById('cd-domain-search').addEventListener('keydown', (e) => { if (e.key === 'Enter') { cdPage = 1; loadCdTab(); } });
+          }
+          if (document.getElementById('cd-prev')) document.getElementById('cd-prev').onclick = () => { cdPage--; loadCdTab(); };
+          if (document.getElementById('cd-next')) document.getElementById('cd-next').onclick = () => { cdPage++; loadCdTab(); };
+        }
+      } catch {}
+    }
+  }
+
+  document.querySelectorAll('#cd-tabs .tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('#cd-tabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      cdTab = tab.dataset.tab;
+      cdPage = 1;
+      loadCdTab();
+    };
+  });
+
+  loadCdTab();
+}
+
+// ─── Global Domains Page ───
+async function renderDomainsPage(container) {
+  let stats = {};
+  try {
+    const res = await api('/api/analytics/stats');
+    if (res.ok) stats = await res.json();
+  } catch {}
+
+  container.innerHTML = `
+    <div class="domains-page">
+      <div class="control-bar">
+        <h2 style="color:var(--yellow)">&#127760; Global Domain Analytics</h2>
+        <button class="warning" id="gd-export">Export CSV</button>
+      </div>
+      <div class="stat-cards">
+        <div class="stat-card"><div class="label">Unique Domains</div><div class="value">${formatNum(stats.unique_domains || 0)}</div></div>
+        <div class="stat-card"><div class="label">Total URLs</div><div class="value cyan">${formatNum(stats.total_results || stats.unique_urls || 0)}</div></div>
+        <div class="stat-card"><div class="label">Total Campaigns</div><div class="value cyan">${formatNum(stats.total_campaigns || 0)}</div></div>
+        <div class="stat-card"><div class="label">Total Jobs</div><div class="value cyan">${formatNum(stats.total_jobs || 0)}</div></div>
+      </div>
+      <div style="margin-bottom:10px">
+        <input type="text" id="gd-search" placeholder="Search domains..." style="max-width:300px">
+      </div>
+      <div class="results-table-wrap">
+        <table id="gd-table"><thead><tr>
+          <th data-col="domain">Domain</th>
+          <th data-col="total_urls">Total URLs</th>
+          <th data-col="seen_in_jobs">Seen in Jobs</th>
+          <th data-col="seen_in_campaigns">Seen in Campaigns</th>
+          <th data-col="first_seen">First Seen</th>
+          <th data-col="last_seen">Last Seen</th>
+        </tr></thead><tbody id="gd-tbody"></tbody></table>
+      </div>
+      <div class="pagination" id="gd-pagination"></div>
+    </div>
+  `;
+
+  let gdPage = 1;
+  let gdData = [];
+  let gdTotal = 0;
+  let gdSort = 'domain';
+  let gdSortDir = 'asc';
+
+  async function loadGlobalDomains() {
+    const search = document.getElementById('gd-search')?.value || '';
+    const params = new URLSearchParams({ page: gdPage, per_page: 50, search });
+    try {
+      const res = await api(`/api/analytics/domains?${params}`);
+      if (res.ok) {
+        const data = await res.json();
+        gdData = data.items || data.domains || [];
+        gdTotal = data.total || gdData.length;
+      }
+    } catch {}
+    renderGlobalDomains();
+  }
+
+  function renderGlobalDomains() {
+    const tbody = document.getElementById('gd-tbody');
+    const pag = document.getElementById('gd-pagination');
+    if (!tbody) return;
+
+    let rows = [...gdData];
+    // Client-side sort
+    const dir = gdSortDir === 'asc' ? 1 : -1;
+    rows.sort((a, b) => {
+      let va = a[gdSort], vb = b[gdSort];
+      if (va == null) va = '';
+      if (vb == null) vb = '';
+      if (typeof va === 'number') return (va - vb) * dir;
+      return String(va).localeCompare(String(vb)) * dir;
+    });
+
+    tbody.innerHTML = rows.map(d => `<tr>
+      <td>${esc(d.domain)}</td>
+      <td>${formatNum(d.total_urls || d.count || 0)}</td>
+      <td>${formatNum(d.seen_in_jobs || 0)}</td>
+      <td>${formatNum(d.seen_in_campaigns || 0)}</td>
+      <td>${d.first_seen ? new Date(d.first_seen).toLocaleString() : '--'}</td>
+      <td>${d.last_seen ? new Date(d.last_seen).toLocaleString() : '--'}</td>
+    </tr>`).join('') || '<tr><td colspan="6" style="color:var(--text-muted)">No domains found</td></tr>';
+
+    const totalPages = Math.max(1, Math.ceil(gdTotal / 50));
+    pag.innerHTML = `
+      <button ${gdPage<=1?'disabled':''} id="gd-prev">&laquo; Prev</button>
+      <span>Page ${gdPage} / ${totalPages} (${formatNum(gdTotal)} domains)</span>
+      <button ${gdPage>=totalPages?'disabled':''} id="gd-next">Next &raquo;</button>
+    `;
+    if (document.getElementById('gd-prev')) document.getElementById('gd-prev').onclick = () => { gdPage--; loadGlobalDomains(); };
+    if (document.getElementById('gd-next')) document.getElementById('gd-next').onclick = () => { gdPage++; loadGlobalDomains(); };
+  }
+
+  // Search
+  document.getElementById('gd-search').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { gdPage = 1; loadGlobalDomains(); }
+  });
+
+  // Sort headers
+  document.querySelectorAll('#gd-table th').forEach(th => {
+    th.onclick = () => {
+      const col = th.dataset.col;
+      if (gdSort === col) {
+        gdSortDir = gdSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        gdSort = col;
+        gdSortDir = 'asc';
+      }
+      renderGlobalDomains();
+    };
+  });
+
+  // Export
+  document.getElementById('gd-export').onclick = () => {
+    const search = document.getElementById('gd-search')?.value || '';
+    window.open(`/api/analytics/domains?per_page=99999&search=${encodeURIComponent(search)}&format=csv`, '_blank');
+  };
+
+  loadGlobalDomains();
+}
+
+// ─── Config Page ───
+async function renderConfig(container) {
+  try {
+    const res = await api('/api/profiles');
+    if (res.ok) S.profiles = await res.json();
+  } catch {}
+
+  S.selectedProfile = null;
+
+  container.innerHTML = `
+    <div class="control-bar">
+      <h2>Profiles</h2>
+      <button class="primary" id="cfg-new">+ New Profile</button>
+      <button class="danger" id="cfg-delete" style="display:none">Delete</button>
+    </div>
+    <div class="profile-cards" id="profile-cards"></div>
+    <div class="config-editor card" id="config-editor" style="display:none">
+      <h3 id="cfg-editor-title">Edit Profile</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Name</label><input type="text" id="cfg-name"></div>
+        <div class="form-group"><label>Scope</label><select id="cfg-scope"><option value="dw">Dark Web</option><option value="cw">Clear Web</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Mode</label><select id="cfg-mode"><option value="full_crawl">Full Crawl</option><option value="unique_domains">Unique Domains</option></select></div>
+        <div class="form-group"><label>Concurrency</label><input type="number" id="cfg-concurrency" min="1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Timeout (s)</label><input type="number" id="cfg-timeout" min="1"></div>
+        <div class="form-group"><label>Max Depth</label><input type="number" id="cfg-max-depth" min="0"></div>
+      </div>
+      <div class="form-group"><label>User Agent</label><input type="text" id="cfg-ua" placeholder="Mozilla/5.0..."></div>
+      <div class="form-row">
+        <div class="form-group"><label>Include Pattern</label><input type="text" id="cfg-include"></div>
+        <div class="form-group"><label>Exclude Pattern</label><input type="text" id="cfg-exclude"></div>
+      </div>
+      <div class="form-group">
+        <label>Output Formats</label>
+        <div class="checkbox-group">
+          <label><input type="checkbox" name="cfg-fmt" value="json"> JSON</label>
+          <label><input type="checkbox" name="cfg-fmt" value="jsonl"> JSONL</label>
+          <label><input type="checkbox" name="cfg-fmt" value="csv"> CSV</label>
+          <label><input type="checkbox" name="cfg-fmt" value="sqlite"> SQLite</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="primary" id="cfg-save">Save</button>
+        <button id="cfg-cancel">Cancel</button>
+      </div>
+    </div>
+  `;
+
+  renderProfileCards();
+
+  document.getElementById('cfg-new').onclick = () => {
+    S.selectedProfile = null;
+    document.getElementById('cfg-editor-title').textContent = 'New Profile';
+    clearConfigForm();
+    document.getElementById('config-editor').style.display = '';
+    document.getElementById('cfg-delete').style.display = 'none';
+  };
+
+  document.getElementById('cfg-cancel').onclick = () => {
+    document.getElementById('config-editor').style.display = 'none';
+    S.selectedProfile = null;
+    renderProfileCards();
+  };
+
+  document.getElementById('cfg-save').onclick = async () => {
+    const body = gatherConfigForm();
+    try {
+      let res;
+      res = await api('/api/profiles', { method: 'POST', body: JSON.stringify(body) });
+      if (res.ok) {
+        const r2 = await api('/api/profiles');
+        if (r2.ok) S.profiles = await r2.json();
+        document.getElementById('config-editor').style.display = 'none';
+        renderProfileCards();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        alert(d.error || 'Failed to save profile.');
+      }
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  document.getElementById('cfg-delete').onclick = async () => {
+    if (!S.selectedProfile) return;
+    if (!confirm('Delete this profile?')) return;
+    try {
+      await api(`/api/profiles/${S.selectedProfile}`, { method: 'DELETE' });
+      const r2 = await api('/api/profiles');
+      if (r2.ok) S.profiles = await r2.json();
+      S.selectedProfile = null;
+      document.getElementById('config-editor').style.display = 'none';
+      document.getElementById('cfg-delete').style.display = 'none';
+      renderProfileCards();
+    } catch {}
+  };
+}
+
+function renderProfileCards() {
+  const wrap = document.getElementById('profile-cards');
+  if (!wrap) return;
+  wrap.innerHTML = S.profiles.map(p => `
+    <div class="profile-card ${S.selectedProfile === (p.name || p.id) ? 'selected' : ''}" data-id="${esc(p.name || p.id)}">
+      <div class="pname">${esc(p.name || p.id)}</div>
+      <div class="pmeta">${scopeBadge(p.scope || 'cw')} ${esc(p.mode || 'full_crawl')} &middot; ${p.concurrency || '?'} workers</div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.profile-card').forEach(card => {
+    card.onclick = async () => {
+      const id = card.dataset.id;
+      S.selectedProfile = id;
+      try {
+        const res = await api(`/api/profiles/${id}`);
+        if (res.ok) {
+          const fullProfile = await res.json();
+          fillConfigForm(fullProfile);
+        }
+      } catch {}
+      document.getElementById('cfg-editor-title').textContent = 'Edit Profile';
+      document.getElementById('config-editor').style.display = '';
+      document.getElementById('cfg-delete').style.display = '';
+      renderProfileCards();
+    };
+  });
+}
+
+function clearConfigForm() {
+  ['cfg-name','cfg-concurrency','cfg-timeout','cfg-max-depth','cfg-ua','cfg-include','cfg-exclude'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('cfg-scope').value = 'dw';
+  document.getElementById('cfg-mode').value = 'full_crawl';
+  document.querySelectorAll('[name="cfg-fmt"]').forEach(cb => cb.checked = false);
+}
+
+function fillConfigForm(p) {
+  const cfg = p.config || p;
+  document.getElementById('cfg-name').value = p.name || '';
+  document.getElementById('cfg-scope').value = cfg.scope || 'dw';
+  document.getElementById('cfg-mode').value = cfg.mode || 'full_crawl';
+  document.getElementById('cfg-concurrency').value = cfg.concurrency || '';
+  document.getElementById('cfg-timeout').value = cfg.timeout || '';
+  document.getElementById('cfg-max-depth').value = cfg.max_depth || '';
+  document.getElementById('cfg-ua').value = cfg.user_agent || '';
+  document.getElementById('cfg-include').value = cfg.include_pattern || '';
+  document.getElementById('cfg-exclude').value = cfg.exclude_pattern || '';
+  const fmts = cfg.formats || [];
+  document.querySelectorAll('[name="cfg-fmt"]').forEach(cb => {
+    cb.checked = fmts.includes(cb.value);
+  });
+}
+
+function gatherConfigForm() {
+  const name = document.getElementById('cfg-name').value.trim();
+  const config = {
+    scope: document.getElementById('cfg-scope').value,
+    mode: document.getElementById('cfg-mode').value,
+    concurrency: parseInt(document.getElementById('cfg-concurrency').value) || 20,
+    timeout: parseInt(document.getElementById('cfg-timeout').value) || 20,
+    max_depth: parseInt(document.getElementById('cfg-max-depth').value) || 0,
+    user_agent: document.getElementById('cfg-ua').value.trim() || undefined,
+    include_pattern: document.getElementById('cfg-include').value.trim() || undefined,
+    exclude_pattern: document.getElementById('cfg-exclude').value.trim() || undefined,
+    formats: Array.from(document.querySelectorAll('[name="cfg-fmt"]:checked')).map(cb => cb.value),
+  };
+  return { name, config };
+}
+
+// ─── Seeds Page ───
+async function renderSeeds(container) {
+  try {
+    const res = await api('/api/seeds');
+    if (res.ok) S.seeds = await res.json();
+  } catch {}
+
+  S.selectedSeed = null;
+
+  container.innerHTML = `
+    <div class="control-bar">
+      <h2>Seed Files</h2>
+      <button class="primary" id="seed-new">+ New</button>
+      <button id="seed-upload">Upload</button>
+      <button class="primary" id="seed-save" style="display:none">Save</button>
+      <button class="danger" id="seed-delete" style="display:none">Delete</button>
+      <input type="file" id="seed-file-input" accept=".txt,.csv,.list" style="display:none">
+    </div>
+    <div class="seed-cards" id="seed-cards"></div>
+    <div id="seed-editor-area" style="display:none">
+      <div class="form-group">
+        <label id="seed-editor-label">Editing: </label>
+        <input type="text" id="seed-name-input" placeholder="Seed file name" style="margin-bottom:8px">
+      </div>
+      <div class="seed-editor">
+        <textarea id="seed-textarea" placeholder="One URL per line..."></textarea>
+      </div>
+    </div>
+  `;
+
+  renderSeedCards();
+
+  document.getElementById('seed-new').onclick = () => {
+    S.selectedSeed = null;
+    document.getElementById('seed-name-input').value = '';
+    document.getElementById('seed-textarea').value = '';
+    document.getElementById('seed-editor-area').style.display = '';
+    document.getElementById('seed-save').style.display = '';
+    document.getElementById('seed-delete').style.display = 'none';
+    document.getElementById('seed-editor-label').textContent = 'New Seed File';
+    renderSeedCards();
+  };
+
+  document.getElementById('seed-upload').onclick = () => {
+    document.getElementById('seed-file-input').click();
+  };
+
+  document.getElementById('seed-file-input').onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    S.selectedSeed = null;
+    document.getElementById('seed-name-input').value = file.name.replace(/\.[^.]+$/, '');
+    document.getElementById('seed-textarea').value = text;
+    document.getElementById('seed-editor-area').style.display = '';
+    document.getElementById('seed-save').style.display = '';
+    document.getElementById('seed-delete').style.display = 'none';
+    document.getElementById('seed-editor-label').textContent = 'Uploaded: ' + file.name;
+  };
+
+  document.getElementById('seed-save').onclick = async () => {
+    const name = document.getElementById('seed-name-input').value.trim();
+    const urls = document.getElementById('seed-textarea').value;
+    if (!name) { alert('Please provide a name.'); return; }
+    const body = { name, urls: urls.split('\n').map(u => u.trim()).filter(Boolean) };
+    try {
+      let res;
+      if (S.selectedSeed) {
+        res = await api(`/api/seeds/${S.selectedSeed}`, { method: 'PUT', body: JSON.stringify(body) });
+      } else {
+        res = await api('/api/seeds', { method: 'POST', body: JSON.stringify(body) });
+      }
+      if (res.ok) {
+        const r2 = await api('/api/seeds');
+        if (r2.ok) S.seeds = await r2.json();
+        renderSeedCards();
+      }
+    } catch {}
+  };
+
+  document.getElementById('seed-delete').onclick = async () => {
+    if (!S.selectedSeed) return;
+    if (!confirm('Delete this seed file?')) return;
+    try {
+      await api(`/api/seeds/${S.selectedSeed}`, { method: 'DELETE' });
+      const r2 = await api('/api/seeds');
+      if (r2.ok) S.seeds = await r2.json();
+      S.selectedSeed = null;
+      document.getElementById('seed-editor-area').style.display = 'none';
+      document.getElementById('seed-save').style.display = 'none';
+      document.getElementById('seed-delete').style.display = 'none';
+      renderSeedCards();
+    } catch {}
+  };
+}
+
+function renderSeedCards() {
+  const wrap = document.getElementById('seed-cards');
+  if (!wrap) return;
+  wrap.innerHTML = S.seeds.map(s => `
+    <div class="seed-card ${S.selectedSeed === (s.name || s.id) ? 'selected' : ''}" data-id="${esc(s.name || s.id)}">
+      <div class="sname">${esc(s.name || s.id)}</div>
+      <div class="scount">${formatNum(s.url_count || (s.urls || []).length)} URLs</div>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.seed-card').forEach(card => {
+    card.onclick = async () => {
+      const id = card.dataset.id;
+      S.selectedSeed = id;
+      // Load seed detail
+      try {
+        const res = await api(`/api/seeds/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('seed-name-input').value = data.name || id;
+          document.getElementById('seed-textarea').value = (data.urls || []).join('\n');
+        }
+      } catch {}
+      document.getElementById('seed-editor-area').style.display = '';
+      document.getElementById('seed-save').style.display = '';
+      document.getElementById('seed-delete').style.display = '';
+      document.getElementById('seed-editor-label').textContent = 'Editing: ' + id;
+      renderSeedCards();
+    };
+  });
+}
+
+// ─── Init ───
+async function init() {
+  // Sidebar toggle
+  document.getElementById('sidebar-toggle').onclick = () => {
+    document.getElementById('sidebar').classList.toggle('collapsed');
+  };
+
+  // Nav items
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.onclick = () => {
+      const route = item.dataset.route;
+      if (route === 'logout') {
+        doLogout();
+      } else {
+        navigateTo(route);
+      }
+    };
+  });
+
+  // Login
+  document.getElementById('login-btn').onclick = doLogin;
+  document.getElementById('login-pass').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  // Route changes
+  window.addEventListener('hashchange', handleRoute);
+
+  // Check auth
+  await checkAuth();
+  if (S.authenticated) {
+    connectWS();
+    if (!location.hash || location.hash === '#/login') {
+      navigateTo('#/dashboard');
+    } else {
+      handleRoute();
+    }
+  } else {
+    navigateTo('#/login');
+    handleRoute();
+  }
+}
+
+init();
+</script>
+</body>
+</html>
