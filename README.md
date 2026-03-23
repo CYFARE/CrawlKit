@@ -1,6 +1,13 @@
-# CrawlKit
+<h1 align="center">
+  <img src="https://raw.githubusercontent.com/CYFARE/CrawlKit/main/gh-banner.jpeg" alt="CrawlKit Logo">
+</h1>
 
-Async mass URL crawler for clearweb and deepweb (.onion) sites. Built with Python 3.13+ and aiohttp.
+<h2 align="center">
+  <img src="https://img.shields.io/badge/-AGPLv3.0-61DAFB?style=for-the-badge" alt="License: AGPLv3.0">&nbsp;
+  <img src="https://img.shields.io/badge/-3.0-61DAFB?style=for-the-badge" alt="Version: 3.0">
+</h2>
+
+**Advance Mass Web Crawler For ClearWeb & DeepWeb**
 
 ## Features
 
